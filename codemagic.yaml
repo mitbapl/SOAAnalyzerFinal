@@ -8,7 +8,7 @@ workflows:
         KEY_ALIAS: $KEY_ALIAS
         KEY_PASSWORD: $KEY_PASSWORD
       android_signing:
-        - soa.b64 # or remove this if using base64 method
+        - KEYSTORE_B64 # or remove this if using base64 method
     scripts:
       - name: Decode Keystore
         script: |
