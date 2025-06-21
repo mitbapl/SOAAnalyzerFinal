@@ -1,23 +1,24 @@
 workflows:
   android-app:
-    name: Build SOAAnalyzer Android App
-    max_build_duration: 30
+    name: Signed AAB Build
     environment:
-      android_signing:
-        - keystore_reference
       vars:
-        PACKAGE_NAME: "com.example.soa"
+        KEYSTORE_B64: $KEYSTORE_B64
+        KEYSTORE_PASSWORD: $KEYSTORE_PASSWORD
+        KEY_ALIAS: $KEY_ALIAS
+        KEY_PASSWORD: $KEY_PASSWORD
+      android_signing:
+        - your_uploaded_keystore_name # or remove this if using base64 method
     scripts:
+      - name: Decode Keystore
+        script: |
+          echo "$KEYSTORE_B64" | base64 -d > keystore.jks
       - name: Build AAB
         script: |
           ./gradlew clean
-          ./gradlew bundleRelease
+          ./gradlew bundleRelease -Pandroid.injected.signing.store.file=keystore.jks \
+                                  -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+                                  -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+                                  -Pandroid.injected.signing.key.password=$KEY_PASSWORD
     artifacts:
       - build/**/outputs/**/*.aab
-    publishing:
-      email:
-        recipients:
-          - your-email@example.com
-        notify:
-          success: true
-          failure: true
