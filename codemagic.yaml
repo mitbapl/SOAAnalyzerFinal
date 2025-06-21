@@ -6,9 +6,14 @@ workflows:
       vars:
         PACKAGE_NAME: "com.example.soa"
     scripts:
-      - name: Build Unsigned AAB
+      - name: Build Unsigned AAB with CLI Gradle
         script: |
-          ./gradlew clean
-          ./gradlew bundleRelease
+          # ensure Android SDK is in PATH
+          export ANDROID_HOME="$HOME/Android/Sdk"
+          export PATH="$ANDROID_HOME/platform-tools:$PATH"
+          
+          # Use the system Gradle instead of wrapper
+          gradle clean
+          gradle bundleRelease
     artifacts:
       - app/build/outputs/bundle/**/*.aab
