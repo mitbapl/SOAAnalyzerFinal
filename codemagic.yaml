@@ -1,0 +1,23 @@
+workflows:
+  android-app:
+    name: Build SOAAnalyzer Android App
+    max_build_duration: 30
+    environment:
+      android_signing:
+        - keystore_reference
+      vars:
+        PACKAGE_NAME: "com.example.soa"
+    scripts:
+      - name: Build AAB
+        script: |
+          ./gradlew clean
+          ./gradlew bundleRelease
+    artifacts:
+      - build/**/outputs/**/*.aab
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: true
+          failure: true
