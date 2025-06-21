@@ -6,12 +6,12 @@ workflows:
         PACKAGE_NAME: "com.example.soa"
         KEYSTORE_B64: $KEYSTORE_B64
         KEYSTORE_PASSWORD: $KEYSTORE_PASSWORD
-        KEY_ALIAS: $KEY_ALIAS
-        KEY_PASSWORD: $KEY_PASSWORD
+        KEY_ALIAS:     $KEY_ALIAS
+        KEY_PASSWORD:  $KEY_PASSWORD
     scripts:
       - name: Decode Keystore
         script: |
-          echo "$KEYSTORE_B64" | base64 -d > keystore.jks
+          printf '%s' "$KEYSTORE_B64" | base64 -d > keystore.jks
       - name: Build AAB
         script: |
           ./gradlew clean
