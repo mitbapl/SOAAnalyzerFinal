@@ -1,14 +1,13 @@
 workflows:
   android-app:
-    name: Signed AAB Build
+    name: Signed AAB Build with Base64 Keystore
     environment:
       vars:
+        PACKAGE_NAME: "com.example.soa"
         KEYSTORE_B64: $KEYSTORE_B64
         KEYSTORE_PASSWORD: $KEYSTORE_PASSWORD
         KEY_ALIAS: $KEY_ALIAS
         KEY_PASSWORD: $KEY_PASSWORD
-      android_signing:
-        - KEYSTORE_B64 # or remove this if using base64 method
     scripts:
       - name: Decode Keystore
         script: |
@@ -16,9 +15,10 @@ workflows:
       - name: Build AAB
         script: |
           ./gradlew clean
-          ./gradlew bundleRelease -Pandroid.injected.signing.store.file=keystore.jks \
-                                  -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-                                  -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-                                  -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=keystore.jks \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
     artifacts:
       - build/**/outputs/**/*.aab
