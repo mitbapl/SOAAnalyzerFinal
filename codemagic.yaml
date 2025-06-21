@@ -1,24 +1,14 @@
 workflows:
   android-app:
-    name: Signed AAB Build with Base64 Keystore
+    name: Unsigned AAB Build
+    max_build_duration: 30
     environment:
       vars:
         PACKAGE_NAME: "com.example.soa"
-        KEYSTORE_B64: $KEYSTORE_B64
-        KEYSTORE_PASSWORD: $KEYSTORE_PASSWORD
-        KEY_ALIAS:     $KEY_ALIAS
-        KEY_PASSWORD:  $KEY_PASSWORD
     scripts:
-      - name: Decode Keystore
-        script: |
-          printf '%s' "$KEYSTORE_B64" | base64 -d > keystore.jks
-      - name: Build AAB
+      - name: Build Unsigned AAB
         script: |
           ./gradlew clean
-          ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file=keystore.jks \
-            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+          ./gradlew bundleRelease
     artifacts:
-      - build/**/outputs/**/*.aab
+      - app/build/outputs/bundle/**/*.aab
