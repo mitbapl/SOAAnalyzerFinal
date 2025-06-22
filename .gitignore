@@ -1,4 +1,4 @@
-# Ignore build files and local secrets
+# Ignore build files and sensitive/local files
 .gradle/
 build/
 .idea/

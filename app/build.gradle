@@ -7,7 +7,7 @@ android {
     buildToolsVersion "33.0.2"
 
     defaultConfig {
-        applicationId "com.example.soa"
+        applicationId "com.mitbapl.soa"
         minSdkVersion 21
         targetSdkVersion 33
         versionCode 1

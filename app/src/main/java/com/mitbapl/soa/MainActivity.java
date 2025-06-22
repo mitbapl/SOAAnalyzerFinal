@@ -1,4 +1,4 @@
-package com.example.soa;
+package com.mitbapl.soa;
 
 import android.app.Activity;
 import android.os.Bundle;
