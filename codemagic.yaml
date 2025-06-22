@@ -5,7 +5,7 @@ workflows:
     scripts:
       - name: Make wrapper executable
         script: |
-          chmod +r gradlew
+          chmod +x gradlew
       - name: Build AAB (wrapper)
         script: |
           ./gradlew clean
