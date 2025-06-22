@@ -1,0 +1,9 @@
+# Ignore build files and local secrets
+.gradle/
+build/
+.idea/
+*.iml
+*.apk
+*.aab
+*.jks
+soa.b64
