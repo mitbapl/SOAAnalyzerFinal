@@ -8,12 +8,15 @@ workflows:
     scripts:
       - name: Make Gradle executable
         script: chmod +x gradlew
-      - name: Build APK
+
+      - name: Clean and Build Release APK
         script: |
           ./gradlew clean
           ./gradlew assembleRelease
+
     artifacts:
       - app/build/outputs/apk/release/*.apk
+
     publishing:
       email:
         recipients:
