@@ -19,17 +19,8 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.debug // For testing, remove for production
+            // Removed debug signingConfig for Codemagic compatibility
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-
-    signingConfigs {
-        debug {
-            storeFile file("debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
         }
     }
 
@@ -54,7 +45,7 @@ dependencies {
     implementation 'com.google.android.material:material:1.9.0'
     implementation 'com.tom-roush:pdfbox-android:2.0.27.0'
 
-    // Ensure single Kotlin version to fix duplicate class error
+    // Ensure single Kotlin version
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.22"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
