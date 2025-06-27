@@ -5,6 +5,8 @@ plugins {
 android {
     namespace 'com.mitbapl.soa'
     compileSdkVersion 34
+    buildToolsVersion "33.0.2"
+
     defaultConfig {
         applicationId "com.mitbapl.soa"
         minSdkVersion 21
@@ -12,12 +14,29 @@ android {
         versionCode 3
         versionName "1.0.2"
     }
+
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.debug // remove if using real keystore
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    // Optional if using debug signing only:
+    signingConfigs {
+        debug {
+            storeFile file("debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
 }
 
 dependencies {
