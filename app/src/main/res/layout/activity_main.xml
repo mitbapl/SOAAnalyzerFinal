@@ -1,30 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mainLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:gravity="center_horizontal"
+    android:background="#ffffff">
 
     <Button
         android:id="@+id/uploadBtn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Upload SOA PDF" />
+        android:text="Upload SOA PDF"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="16dp" />
 
     <Button
         android:id="@+id/analyzeBtn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Analyze" />
+        android:text="Analyze PDF"
+        android:layout_marginBottom="16dp" />
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
         <TextView
-            android:id="@+id/output"
+            android:id="@+id/resultText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Result will appear here..."
-            android:padding="10dp"/>
+            android:text="Result will be shown here"
+            android:textSize="16sp"
+            android:padding="8dp"
+            android:textColor="#000000" />
     </ScrollView>
+
 </LinearLayout>
