@@ -11,6 +11,8 @@ import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
 import java.io.*
 import java.util.*
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+
 
 class MainActivity : AppCompatActivity() {
     private val PICK_PDF_REQUEST = 1
