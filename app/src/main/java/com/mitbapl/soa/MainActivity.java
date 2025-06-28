@@ -4,127 +4,120 @@ import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.widget.*;
+import android.provider.DocumentsContract;
 import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 
-import java.io.*;
-import java.util.regex.*;
-import okhttp3.*;
-import org.json.JSONObject;
+import java.io.InputStream;
+import java.util.Scanner;
 
-public class MainActivity extends Activity {
-    private static final int PICK_PDF = 100;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import java.io.IOException;
+
+public class MainActivity extends AppCompatActivity {
+
+    private static final int PICK_PDF_FILE = 2;
+    private TextView resultText;
+    private Button uploadButton, analyzeButton;
     private Uri selectedPdfUri;
-    private TextView output;
 
-    // ⬇️ Replace with your Render server URL
-    private static final String SERVER_URL = "https://tika-server.onrender.com/extract";
+    private final String serverUrl = "https://tika-server.onrender.com/parse";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        
+        uploadButton = findViewById(R.id.uploadBtn);
+        analyzeButton = findViewById(R.id.analyzeBtn);
+        resultText = findViewById(R.id.resultText);
 
-        Button uploadBtn = findViewById(R.id.uploadBtn);
-        Button analyzeBtn = findViewById(R.id.analyzeBtn);
-        output = findViewById(R.id.output);
+        uploadButton.setOnClickListener(view -> openPdfPicker());
 
-        uploadBtn.setOnClickListener(v -> pickPdf());
-        analyzeBtn.setOnClickListener(v -> {
+        analyzeButton.setOnClickListener(view -> {
             if (selectedPdfUri != null) {
-                analyzePdf(selectedPdfUri);
+                uploadAndAnalyze(selectedPdfUri);
             } else {
-                output.setText("Please upload a PDF first.");
+                resultText.setText("Please select a PDF first.");
             }
         });
     }
 
-    private void pickPdf() {
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+    private void openPdfPicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.setType("application/pdf");
-        startActivityForResult(intent, PICK_PDF);
+        startActivityForResult(intent, PICK_PDF_FILE);
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == PICK_PDF && resultCode == RESULT_OK && data != null) {
+        if (requestCode == PICK_PDF_FILE && resultCode == Activity.RESULT_OK && data != null) {
             selectedPdfUri = data.getData();
-            output.setText("PDF selected: " + selectedPdfUri.getLastPathSegment());
+            resultText.setText("PDF selected: " + selectedPdfUri.getLastPathSegment());
         }
     }
 
-    private void analyzePdf(Uri pdfUri) {
+    private void uploadAndAnalyze(Uri pdfUri) {
         try {
             InputStream inputStream = getContentResolver().openInputStream(pdfUri);
-            byte[] pdfBytes = readBytes(inputStream);
+            byte[] pdfBytes = new byte[inputStream.available()];
+            inputStream.read(pdfBytes);
+            inputStream.close();
 
-            // Build multipart request
             OkHttpClient client = new OkHttpClient();
-            RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-                .addFormDataPart("file", "soa.pdf",
-                    RequestBody.create(pdfBytes, MediaType.parse("application/pdf")))
-                .build();
 
-            Request request = new Request.Builder().url(SERVER_URL).post(requestBody).build();
+            RequestBody body = new MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("file", "soa.pdf",
+                            RequestBody.create(MediaType.parse("application/pdf"), pdfBytes))
+                    .build();
 
-            // Run in background thread
-            new Thread(() -> {
-                try {
-                    Response response = client.newCall(request).execute();
-                    if (!response.isSuccessful()) {
-                        runOnUiThread(() -> output.setText("Server error: " + response.code()));
-                        return;
-                    }
+            Request request = new Request.Builder()
+                    .url(serverUrl)
+                    .post(body)
+                    .build();
 
-                    String body = response.body().string();
-                    JSONObject json = new JSONObject(body);
-                    String text = json.getString("text");
-
-                    String parsed = parseSOA(text);
-                    runOnUiThread(() -> output.setText(parsed));
-
-                } catch (Exception e) {
-                    runOnUiThread(() -> output.setText("Error: " + e.getMessage()));
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> resultText.setText("Failed to connect to server."));
                 }
-            }).start();
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseData = response.body().string();
+                    String extractedInfo = extractWithRegex(responseData);
+
+                    runOnUiThread(() -> resultText.setText(extractedInfo));
+                }
+            });
 
         } catch (Exception e) {
-            output.setText("Read error: " + e.getMessage());
+            resultText.setText("Error: " + e.getMessage());
         }
     }
 
-    private byte[] readBytes(InputStream inputStream) throws IOException {
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        int nRead;
-        byte[] data = new byte[4096];
-        while ((nRead = inputStream.read(data, 0, data.length)) != -1) {
-            buffer.write(data, 0, nRead);
+    private String extractWithRegex(String text) {
+        // Example regex: extract account number like ACC123456789
+        String pattern = "ACC\\d{9}";
+        java.util.regex.Pattern r = java.util.regex.Pattern.compile(pattern);
+        java.util.regex.Matcher m = r.matcher(text);
+
+        if (m.find()) {
+            return "Match found: " + m.group(0);
+        } else {
+            return "No match found.";
         }
-        return buffer.toByteArray();
-    }
-
-    private String parseSOA(String input) {
-        // SOA regex pattern
-        Pattern pattern = Pattern.compile("(\\d{2}-\\d{2}-\\d{4})\\s+(\\S+)\\s+(.+?)\\s+(\\d+\\.\\d{2})\\s+(Dr|Cr)\\s+(\\d+\\.\\d{2})\\s+Cr");
-        Matcher matcher = pattern.matcher(input);
-
-        StringBuilder result = new StringBuilder("Date,TxnID,Remarks,Amount,Type,Balance\n");
-
-        boolean found = false;
-        while (matcher.find()) {
-            found = true;
-            result.append(matcher.group(1)).append(",")
-                  .append(matcher.group(2)).append(",")
-                  .append(matcher.group(3)).append(",")
-                  .append(matcher.group(4)).append(",")
-                  .append(matcher.group(5)).append(",")
-                  .append(matcher.group(6)).append("\n");
-        }
-
-        if (!found) {
-            return "No match found.\n\n" + input.substring(0, Math.min(input.length(), 1000));
-        }
-        return result.toString();
     }
 }
