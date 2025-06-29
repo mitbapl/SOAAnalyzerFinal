@@ -1,23 +1,28 @@
 workflows:
   build-aab:
-    name: Build AAB with auto-increment versionCode
+    name: Build AAB for Play Store
     max_build_duration: 30
     environment:
       vars:
         JAVA_VERSION: 17
+      android: # Remove if error persists (not required unless you use Android-specific env)
+        build-tools: "33.0.2"
     scripts:
       - name: Make Gradle executable
         script: chmod +x gradlew
 
       - name: Auto-increment versionCode
         script: |
-          FILE=app/build.gradle
-          CODE=$(grep versionCode $FILE | head -1 | awk '{print $2}')
-          NEWCODE=$((CODE + 1))
-          echo "Current versionCode: $CODE"
-          echo "Incrementing to: $NEWCODE"
-          sed -i.bak "s/versionCode $CODE/versionCode $NEWCODE/" $FILE
-          rm "$FILE.bak"
+          echo "Auto-incrementing versionCode in build.gradle"
+          VERSION_CODE=$(grep versionCode app/build.gradle | awk '{print $2}')
+          NEW_VERSION_CODE=$((VERSION_CODE + 1))
+          sed -i.bak "s/versionCode $VERSION_CODE/versionCode $NEW_VERSION_CODE/" app/build.gradle
+          cat app/build.gradle | grep versionCode
+
+      - name: Build AAB
+        script: |
+          ./gradlew clean
+          ./gradlew bundleRelease
 
       - name: Commit updated build.gradle if changed
         script: |
@@ -26,15 +31,16 @@ workflows:
           else
             git config user.name "codemagic-bot"
             git config user.email "bot@codemagic.io"
+            git remote set-url origin https://$GITHUB_TOKEN@github.com/mitbapl/SOAAnalyzerFinal.git
             git add app/build.gradle
-            git commit -m "Auto-incremented versionCode to $NEWCODE"
+            git commit -m "Auto-incremented versionCode"
             git push origin HEAD
           fi
 
-      - name: Build AAB
-        script: |
-          ./gradlew clean
-          ./gradlew bundleRelease
-
     artifacts:
       - app/build/outputs/bundle/release/*.aab
+
+    publishing:
+      email:
+        recipients:
+          - mitba.prashant@gmail.com
