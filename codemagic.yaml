@@ -5,8 +5,8 @@ workflows:
     environment:
       vars:
         JAVA_VERSION: 17
-      android: # Remove if error persists (not required unless you use Android-specific env)
-        build-tools: "33.0.2"
+        GITHUB_TOKEN: Encrypted_GitHub_Token # Replace with encrypted token ID from Codemagic UI
+
     scripts:
       - name: Make Gradle executable
         script: chmod +x gradlew
@@ -17,7 +17,7 @@ workflows:
           VERSION_CODE=$(grep versionCode app/build.gradle | awk '{print $2}')
           NEW_VERSION_CODE=$((VERSION_CODE + 1))
           sed -i.bak "s/versionCode $VERSION_CODE/versionCode $NEW_VERSION_CODE/" app/build.gradle
-          cat app/build.gradle | grep versionCode
+          echo "Updated versionCode to $NEW_VERSION_CODE"
 
       - name: Build AAB
         script: |
@@ -26,12 +26,13 @@ workflows:
 
       - name: Commit updated build.gradle if changed
         script: |
+          git config user.name "codemagic-bot"
+          git config user.email "bot@codemagic.io"
+          git remote set-url origin https://$GITHUB_TOKEN@github.com/mitbapl/SOAAnalyzerFinal.git
+
           if git diff --quiet; then
             echo "No changes to commit"
           else
-            git config user.name "codemagic-bot"
-            git config user.email "bot@codemagic.io"
-            git remote set-url origin https://$GITHUB_TOKEN@github.com/mitbapl/SOAAnalyzerFinal.git
             git add app/build.gradle
             git commit -m "Auto-incremented versionCode"
             git push origin HEAD
