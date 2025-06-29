@@ -5,14 +5,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
-import android.util.Log
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
 import java.io.*
 import java.util.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     private val PICK_PDF_REQUEST = 1
@@ -63,7 +62,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun uploadPdfToServer(pdfUri: Uri) {
-        val contentResolver = contentResolver
         val inputStream = contentResolver.openInputStream(pdfUri) ?: return
         val fileBytes = inputStream.readBytes()
 
@@ -80,7 +78,12 @@ class MainActivity : AppCompatActivity() {
             .post(requestBody)
             .build()
 
-        val client = OkHttpClient()
+        val client = OkHttpClient.Builder()
+            .connectTimeout(5, TimeUnit.MINUTES)
+            .writeTimeout(5, TimeUnit.MINUTES)
+            .readTimeout(5, TimeUnit.MINUTES)
+            .build()
+
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 runOnUiThread {
