@@ -5,7 +5,7 @@ workflows:
     environment:
       vars:
         JAVA_VERSION: 17
-        # GITHUB_TOKEN is injected via Codemagic UI
+        GITHUB_TOKEN: Encrypted_GitHub_Token  # Set this in Codemagic environment variables
 
     scripts:
       - name: Make Gradle executable
@@ -13,6 +13,7 @@ workflows:
 
       - name: Auto-increment versionCode
         script: |
+          echo "Auto-incrementing versionCode in build.gradle"
           VERSION_CODE=$(grep versionCode app/build.gradle | awk '{print $2}')
           NEW_VERSION_CODE=$((VERSION_CODE + 1))
           sed -i.bak "s/versionCode $VERSION_CODE/versionCode $NEW_VERSION_CODE/" app/build.gradle
