@@ -5,8 +5,8 @@ workflows:
     environment:
       vars:
         JAVA_VERSION: 17
-        GITHUB_TOKEN: Encrypted_GitHub_Token  # Set this in Codemagic environment variables
-
+        GITHUB_TOKEN: Encrypted_GitHub_Token 
+        
     scripts:
       - name: Make Gradle executable
         script: chmod +x gradlew
