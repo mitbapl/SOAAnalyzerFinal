@@ -3,11 +3,19 @@ workflows:
     name: Build AAB for Play Store
     max_build_duration: 30
     environment:
+      java: 17
+      android: true
       vars:
-        JAVA_VERSION: 17
+        PACKAGE_NAME: "com.mitbapl.soa"
     scripts:
       - name: Make Gradle executable
         script: chmod +x gradlew
+
+      - name: Auto-increment versionCode
+        script: |
+          echo "Incrementing versionCode..."
+          sed -i -E 's/versionCode ([0-9]+)/versionCode \1 + 1/e' app/build.gradle
+          grep versionCode app/build.gradle
 
       - name: Build AAB
         script: |
@@ -18,6 +26,10 @@ workflows:
       - app/build/outputs/bundle/release/*.aab
 
     publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        package_name: $PACKAGE_NAME
       email:
         recipients:
           - mitba.prashant@gmail.com
