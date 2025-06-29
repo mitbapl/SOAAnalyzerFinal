@@ -27,7 +27,7 @@ workflows:
         script: |
           git config user.name "codemagic-bot"
           git config user.email "bot@codemagic.io"
-          git remote set-url origin https://$GITHUB_TOKEN@github.com/mitbapl/SOAAnalyzerFinal.git
+          git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/mitbapl/SOAAnalyzerFinal.git
 
           if git diff --quiet; then
             echo "No changes to commit"
