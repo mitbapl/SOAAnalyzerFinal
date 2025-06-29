@@ -1,20 +1,35 @@
 workflows:
   build-aab:
-    name: Build AAB for Play Store
+    name: Build AAB with auto-increment versionCode
     max_build_duration: 30
     environment:
-      java: 17
       vars:
-        PACKAGE_NAME: "com.mitbapl.soa"  # optional for your use, not for Codemagic
+        JAVA_VERSION: 17
     scripts:
       - name: Make Gradle executable
         script: chmod +x gradlew
 
       - name: Auto-increment versionCode
         script: |
-          echo "Incrementing versionCode..."
-          sed -i -E 's/versionCode ([0-9]+)/versionCode \1 + 1/e' app/build.gradle
-          grep versionCode app/build.gradle
+          FILE=app/build.gradle
+          CODE=$(grep versionCode $FILE | head -1 | awk '{print $2}')
+          NEWCODE=$((CODE + 1))
+          echo "Current versionCode: $CODE"
+          echo "Incrementing to: $NEWCODE"
+          sed -i.bak "s/versionCode $CODE/versionCode $NEWCODE/" $FILE
+          rm "$FILE.bak"
+
+      - name: Commit updated build.gradle if changed
+        script: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git config user.name "codemagic-bot"
+            git config user.email "bot@codemagic.io"
+            git add app/build.gradle
+            git commit -m "Auto-incremented versionCode to $NEWCODE"
+            git push origin HEAD
+          fi
 
       - name: Build AAB
         script: |
@@ -23,11 +38,3 @@ workflows:
 
     artifacts:
       - app/build/outputs/bundle/release/*.aab
-
-    publishing:
-      google_play:
-        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-      email:
-        recipients:
-          - mitba.prashant@gmail.com
