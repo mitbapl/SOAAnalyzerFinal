@@ -44,5 +44,13 @@
         android:layout_height="wrap_content"
         android:text="Export to CSV"
         android:visibility="gone"/>
+    
+    <Button
+    android:id="@+id/btnDownload"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Download CSV"
+    android:enabled="false"/>
+
 </LinearLayout>
 </ScrollView>
