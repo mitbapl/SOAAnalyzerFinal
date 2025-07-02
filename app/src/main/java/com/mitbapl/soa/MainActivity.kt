@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.provider.OpenableColumns
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -12,7 +11,6 @@ import okhttp3.*
 import java.io.*
 import java.util.*
 import java.util.concurrent.TimeUnit
-import java.util.regex.Pattern
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 class MainActivity : AppCompatActivity() {
@@ -46,7 +44,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         downloadBtn.setOnClickListener {
-            saveToCsv(outputText.text.toString())
+            val text = outputText.text.toString()
+            val fileName = "extracted_soa.txt"
+            val file = File(getExternalFilesDir(null), fileName)
+            file.writeText(text)
+            Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -102,41 +104,11 @@ class MainActivity : AppCompatActivity() {
 
             override fun onResponse(call: Call, response: Response) {
                 val result = response.body?.string() ?: "No response"
-                val extractedText = extractIndianBankTransactions(result)
                 runOnUiThread {
-                    outputText.text = extractedText
+                    outputText.text = result
                     downloadBtn.isEnabled = true
                 }
             }
         })
-    }
-
-    private fun extractIndianBankTransactions(rawJson: String): String {
-        val text = rawJson.substringAfter("\"text\":\"").replace("\\n", "\n").replace("\\\"", "\"")
-        val regex = Regex("""(?P<date>\d{2}/\d{2}/\n2025).+?NEFT\/(?P<bank>\w+)\/(?P<refno>[\w\d]+)[\s\S]+?Txn Amt\.\s+(?P<amount>\d+\.\d{2})""")
-        val matches = regex.findAll(text)
-
-        val builder = StringBuilder()
-        builder.append("Date,Bank,Ref No,Amount\n")
-        for (match in matches) {
-            val date = match.groups["date"]?.value?.replace("\n", "") ?: ""
-            val bank = match.groups["bank"]?.value ?: ""
-            val ref = match.groups["refno"]?.value ?: ""
-            val amt = match.groups["amount"]?.value ?: ""
-            builder.append("$date,$bank,$ref,$amt\n")
-        }
-
-        return if (builder.length > 30) builder.toString() else "No transactions matched."
-    }
-
-    private fun saveToCsv(data: String) {
-        try {
-            val path = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-            val file = File(path, "soa_extracted.csv")
-            file.writeText(data)
-            Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Error saving file: ${e.message}", Toast.LENGTH_LONG).show()
-        }
     }
 }
