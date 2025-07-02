@@ -3,17 +3,16 @@ package com.mitbapl.soa
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import android.os.*
+import android.os.Bundle
 import android.provider.OpenableColumns
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
 import okhttp3.*
+import org.json.JSONObject
 import java.io.*
 import java.util.*
-import java.util.concurrent.TimeUnit
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     private val PICK_PDF_REQUEST = 1
@@ -21,7 +20,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var outputText: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var downloadButton: Button
-    private var extractedText: String = ""
+    private var latestExtractedText: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,7 +33,7 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
 
         progressBar.visibility = ProgressBar.INVISIBLE
-        downloadButton.visibility = Button.INVISIBLE
+        downloadButton.isEnabled = false
 
         uploadButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -51,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         downloadButton.setOnClickListener {
-            saveTextToFileAndShare(extractedText)
+            saveTextToFile(latestExtractedText)
         }
     }
 
@@ -77,18 +76,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun uploadPdfToServer(pdfUri: Uri) {
         progressBar.visibility = ProgressBar.VISIBLE
-        outputText.text = ""
-        downloadButton.visibility = Button.INVISIBLE
-
         val inputStream = contentResolver.openInputStream(pdfUri) ?: return
         val fileBytes = inputStream.readBytes()
 
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart(
-                "file", "soa.pdf",
-                RequestBody.create("application/pdf".toMediaTypeOrNull(), fileBytes)
-            )
+            .addFormDataPart("file", "soa.pdf",
+                RequestBody.create("application/pdf".toMediaTypeOrNull(), fileBytes))
             .build()
 
         val request = Request.Builder()
@@ -107,46 +101,66 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     progressBar.visibility = ProgressBar.INVISIBLE
                     outputText.text = "Error: ${e.message}"
+                    downloadButton.isEnabled = false
                 }
             }
 
             override fun onResponse(call: Call, response: Response) {
-                val json = response.body?.string()
-                runOnUiThread {
-                    progressBar.visibility = ProgressBar.INVISIBLE
-                    if (json != null) {
-                        try {
-                            val text = JSONObject(json).getString("text")
-                            extractedText = text
-                            outputText.text = text
-                            downloadButton.visibility = Button.VISIBLE
-                        } catch (e: Exception) {
-                            outputText.text = "Invalid server response"
-                        }
-                    } else {
-                        outputText.text = "Empty response"
+                runOnUiThread { progressBar.visibility = ProgressBar.INVISIBLE }
+                val json = response.body?.string() ?: "No response"
+                try {
+                    val jsonObject = JSONObject(json)
+                    val rawText = jsonObject.getString("text")
+                    latestExtractedText = formatSOAText(rawText)
+                    runOnUiThread {
+                        outputText.text = latestExtractedText
+                        downloadButton.isEnabled = true
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        outputText.text = "Error parsing output: ${e.message}"
+                        downloadButton.isEnabled = false
                     }
                 }
             }
         })
     }
 
-    private fun saveTextToFileAndShare(text: String) {
-        val file = File(getExternalFilesDir(null), "extracted_text.txt")
-        file.writeText(text)
-
-        val uri = FileProvider.getUriForFile(
-            this,
-            "${packageName}.provider",
-            file
-        )
-
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    private fun formatSOAText(raw: String): String {
+        val lines = raw.lines()
+        val filtered = lines.filter {
+            it.contains(Regex("\\d{2}/\\d{2}/\\d{4}")) &&
+            it.contains(Regex("NEFT|WITHDRAWAL|DEPOSIT", RegexOption.IGNORE_CASE))
         }
 
-        startActivity(Intent.createChooser(intent, "Share extracted text"))
+        val formatted = StringBuilder()
+        formatted.append("Date\t\tAmount\t\tType\t\tDetails\n")
+        formatted.append("--------------------------------------------------\n")
+
+        for (line in filtered) {
+            val date = Regex("\\d{2}/\\d{2}/\\d{4}").find(line)?.value ?: "-"
+            val amount = Regex("\\d+\\.\\d{2}").find(line)?.value ?: "-"
+            val type = when {
+                line.contains("withdrawal", true) -> "Withdraw"
+                line.contains("deposit", true) -> "Deposit"
+                line.contains("transfer", true) -> "Transfer"
+                else -> "Other"
+            }
+            val desc = line.take(40)
+            formatted.append("$date\t$amount\t$type\t$desc\n")
+        }
+
+        return formatted.toString()
+    }
+
+    private fun saveTextToFile(text: String) {
+        try {
+            val filename = "soa_output_${System.currentTimeMillis()}.txt"
+            val file = File(getExternalFilesDir(null), filename)
+            file.writeText(text)
+            Toast.makeText(this, "Saved to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error saving file: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 }
