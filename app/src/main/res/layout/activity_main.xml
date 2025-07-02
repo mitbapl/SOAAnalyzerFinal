@@ -27,4 +27,21 @@
         android:text="Output will appear here"
         android:layout_marginTop="16dp"
         android:textSize="16sp" />
+
+    <ProgressBar
+    android:id="@+id/progressBar"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:visibility="gone"
+    style="?android:attr/progressBarStyleLarge"
+    android:layout_gravity="center"
+/>
+
+<Button
+    android:id="@+id/btnDownload"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="Download Text"
+    android:visibility="gone" />
+
 </LinearLayout>
