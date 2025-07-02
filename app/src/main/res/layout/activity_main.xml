@@ -28,6 +28,25 @@
         android:layout_marginTop="16dp"
         android:textSize="16sp" />
 
+    <ScrollView
+    android:id="@+id/scrollView"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/txtOutput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textIsSelectable="true"
+        android:textSize="14sp"
+        android:textColor="#FFFFFF"
+        android:background="#000000"
+        android:padding="8dp" />
+    </ScrollView>
+
+
     <ProgressBar
     android:id="@+id/progressBar"
     style="?android:attr/progressBarStyleLarge"
@@ -37,7 +56,7 @@
     android:visibility="gone"
     android:layout_margin="20dp" />
 
-    <Button
+<Button
     android:id="@+id/btnDownload"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
