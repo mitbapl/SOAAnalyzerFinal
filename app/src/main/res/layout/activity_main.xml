@@ -30,18 +30,19 @@
 
     <ProgressBar
     android:id="@+id/progressBar"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:visibility="gone"
     style="?android:attr/progressBarStyleLarge"
-    android:layout_gravity="center"
-/>
-
-<Button
-    android:id="@+id/btnDownload"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:text="Download Text"
-    android:visibility="gone" />
+    android:layout_gravity="center"
+    android:visibility="gone"
+    android:layout_margin="20dp" />
+
+    <Button
+    android:id="@+id/btnDownload"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="DOWNLOAD TEXT"
+    android:visibility="gone"
+    android:layout_marginTop="10dp"/>
 
 </LinearLayout>
