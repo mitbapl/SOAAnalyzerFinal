@@ -1,67 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/mainLayout"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
+    android:layout_height="match_parent">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
     android:padding="16dp"
-    tools:context=".MainActivity">
+    android:orientation="vertical">
 
     <Button
         android:id="@+id/btnUpload"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Upload PDF" />
+        android:text="Upload SOA PDF"/>
 
     <Button
         android:id="@+id/btnAnalyze"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Analyze" />
+        android:text="Analyze"/>
 
-    <TextView
-        android:id="@+id/txtOutput"
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Output will appear here"
-        android:layout_marginTop="16dp"
-        android:textSize="16sp" />
-
-    <ScrollView
-    android:id="@+id/scrollView"
-    android:layout_width="match_parent"
-    android:layout_height="0dp"
-    android:layout_weight="1"
-    android:padding="16dp">
+        android:visibility="gone"/>
 
     <TextView
         android:id="@+id/txtOutput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textIsSelectable="true"
+        android:scrollbars="vertical"
+        android:minHeight="200dp"
         android:textSize="14sp"
-        android:textColor="#FFFFFF"
-        android:background="#000000"
-        android:padding="8dp" />
-    </ScrollView>
+        android:padding="8dp"/>
 
-
-    <ProgressBar
-    android:id="@+id/progressBar"
-    style="?android:attr/progressBarStyleLarge"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_gravity="center"
-    android:visibility="gone"
-    android:layout_margin="20dp" />
-
-<Button
-    android:id="@+id/btnDownload"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="DOWNLOAD TEXT"
-    android:visibility="gone"
-    android:layout_marginTop="10dp"/>
-
+    <Button
+        android:id="@+id/btnExport"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Export to CSV"
+        android:visibility="gone"/>
 </LinearLayout>
+</ScrollView>
