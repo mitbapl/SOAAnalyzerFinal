@@ -6,23 +6,20 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
-import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import java.io.*
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 class MainActivity : AppCompatActivity() {
     private val PICK_PDF_REQUEST = 1
     private var selectedPdfUri: Uri? = null
     private lateinit var outputText: TextView
-    private lateinit var progressBar: ProgressBar
-    private lateinit var exportButton: Button
-    private var extractedCsv = ""
+    private lateinit var downloadBtn: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,12 +27,9 @@ class MainActivity : AppCompatActivity() {
 
         val uploadButton = findViewById<Button>(R.id.btnUpload)
         val analyzeButton = findViewById<Button>(R.id.btnAnalyze)
+        downloadBtn = findViewById<Button>(R.id.btnDownload)
         outputText = findViewById(R.id.txtOutput)
-        progressBar = findViewById(R.id.progressBar)
-        exportButton = findViewById(R.id.btnExport)
-
-        progressBar.visibility = View.GONE
-        exportButton.visibility = View.GONE
+        downloadBtn.isEnabled = false
 
         uploadButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -45,15 +39,14 @@ class MainActivity : AppCompatActivity() {
 
         analyzeButton.setOnClickListener {
             if (selectedPdfUri != null) {
-                progressBar.visibility = View.VISIBLE
                 uploadPdfToServer(selectedPdfUri!!)
             } else {
                 Toast.makeText(this, "Please select soa.pdf first", Toast.LENGTH_SHORT).show()
             }
         }
 
-        exportButton.setOnClickListener {
-            exportToCsv()
+        downloadBtn.setOnClickListener {
+            saveToCsv(outputText.text.toString())
         }
     }
 
@@ -103,74 +96,47 @@ class MainActivity : AppCompatActivity() {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 runOnUiThread {
-                    progressBar.visibility = View.GONE
                     outputText.text = "Error: ${e.message}"
                 }
             }
 
             override fun onResponse(call: Call, response: Response) {
-                val json = response.body?.string() ?: "No response"
-                val extractedText = Regex("\"text\"\\s*:\\s*\"(.*?)\"\\s*}").find(json)?.groupValues?.get(1)
-                    ?.replace("\\n", "\n")?.replace("\\\"", "\"") ?: "Text parsing failed."
-
+                val result = response.body?.string() ?: "No response"
+                val extractedText = extractIndianBankTransactions(result)
                 runOnUiThread {
-                    progressBar.visibility = View.GONE
                     outputText.text = extractedText
-                    val bank = detectBank(extractedText)
-                    val csv = applyBankRegex(extractedText, bank)
-                    extractedCsv = csv
-                    exportButton.visibility = View.VISIBLE
+                    downloadBtn.isEnabled = true
                 }
             }
         })
     }
 
-    private fun detectBank(text: String): String {
-        return when {
-            text.contains("UNION BANK", true) -> "union"
-            text.contains("INDIAN BANK", true) -> "indian"
-            text.contains("HDFC BANK", true) -> "hdfc"
-            text.contains("ICICI", true) -> "icici"
-            text.contains("BANK OF MAHARASHTRA", true) || text.contains("MAHB") -> "bom"
-            else -> "generic"
+    private fun extractIndianBankTransactions(rawJson: String): String {
+        val text = rawJson.substringAfter("\"text\":\"").replace("\\n", "\n").replace("\\\"", "\"")
+        val regex = Regex("""(?P<date>\d{2}/\d{2}/\n2025).+?NEFT\/(?P<bank>\w+)\/(?P<refno>[\w\d]+)[\s\S]+?Txn Amt\.\s+(?P<amount>\d+\.\d{2})""")
+        val matches = regex.findAll(text)
+
+        val builder = StringBuilder()
+        builder.append("Date,Bank,Ref No,Amount\n")
+        for (match in matches) {
+            val date = match.groups["date"]?.value?.replace("\n", "") ?: ""
+            val bank = match.groups["bank"]?.value ?: ""
+            val ref = match.groups["refno"]?.value ?: ""
+            val amt = match.groups["amount"]?.value ?: ""
+            builder.append("$date,$bank,$ref,$amt\n")
         }
+
+        return if (builder.length > 30) builder.toString() else "No transactions matched."
     }
 
-    private fun applyBankRegex(text: String, bank: String): String {
-        val lines = mutableListOf<String>()
-        val regex = when (bank) {
-            "union" -> Regex("""(\d{2}/\d{2}/\d{4})\s+(S\d+|A\d+)\s+(.+?)\s+(\d+\.\d{2})\s+\((Dr|Cr)\)\s+(\d+\.\d{2})""")
-            "indian" -> Regex("""(\d{2}/\d{2}/\n2025).+?NEFT/(\w+)/([\w\d]+)[\s\S]+?Txn Amt\.\s+(\d+\.\d{2})""")
-            "hdfc" -> Regex("""(\d{2}/\d{2}/\d{2})\s+(IMPS.*?|CASH DEPOSIT.*?)\s+\d{10,}\s+\d{2}/\d{2}/\d{2}\s+(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s+(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)""")
-            "icici" -> Regex("""(\d{2}/\d{2}/\d{4})\s+\d{2}/\d{2}/\d{4} - (UPI/.+?)\/([A-Z\s]+)/([\w\/]+)\s+(\d+\.\d{2})\s+(\d+\.\d{2})\s+(\d+\.\d{2})""")
-            "bom" -> Regex("""(\d+)\s+(\d{2}/\d{2}/\d{4})\s+(UPI\s[\s\S]+?)\n(\d+)\s+(\d+\.\d{2}|-)\s+(\d+\.\d{2}|-)\s+(\d+\.\d{2})""")
-            else -> Regex("""(\d{2}/\d{2}/\d{4}).+?(\d+\.\d{2})""")
-        }
-
-        lines.add("Date,Description,Amount,Type,Balance")
-        regex.findAll(text).forEach {
-            val groups = it.groupValues
-            when (bank) {
-                "union" -> lines.add("${groups[1]},${groups[3]},${groups[4]},${groups[5]},${groups[6]}")
-                "indian" -> lines.add("${groups[1]},NEFT/${groups[2]}/${groups[3]},${groups[4]},,")
-                "hdfc" -> lines.add("${groups[1]},${groups[2]},${groups[3]},,${groups[4]}")
-                "icici" -> lines.add("${groups[1]},${groups[2]},${groups[5]},,${groups[7]}")
-                "bom" -> lines.add("${groups[2]},${groups[3]},${groups[5]},,${groups[7]}")
-                else -> lines.add("${groups[1]},Unknown,${groups[2]},,")
-            }
-        }
-
-        return lines.joinToString("\n")
-    }
-
-    private fun exportToCsv() {
+    private fun saveToCsv(data: String) {
         try {
-            val filename = "soa_output_${System.currentTimeMillis()}.csv"
-            val file = File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), filename)
-            file.writeText(extractedCsv)
-            Toast.makeText(this, "Saved: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            val path = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+            val file = File(path, "soa_extracted.csv")
+            file.writeText(data)
+            Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Export error: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Error saving file: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 }
