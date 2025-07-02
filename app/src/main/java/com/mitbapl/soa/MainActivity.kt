@@ -5,12 +5,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.util.Log
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import java.io.*
 import java.util.*
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
@@ -34,9 +35,11 @@ class MainActivity : AppCompatActivity() {
 
         analyzeButton.setOnClickListener {
             if (selectedPdfUri != null) {
+                Log.d("SOAAnalyzer", "Analyze button clicked. URI: $selectedPdfUri")
                 uploadPdfToServer(selectedPdfUri!!)
             } else {
                 Toast.makeText(this, "Please select soa.pdf first", Toast.LENGTH_SHORT).show()
+                Log.w("SOAAnalyzer", "No PDF selected before analyze clicked")
             }
         }
     }
@@ -46,6 +49,7 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == PICK_PDF_REQUEST && resultCode == Activity.RESULT_OK) {
             selectedPdfUri = data?.data
             Toast.makeText(this, "File selected: ${getFileName(selectedPdfUri!!)}", Toast.LENGTH_SHORT).show()
+            Log.d("SOAAnalyzer", "Selected PDF URI: $selectedPdfUri")
         }
     }
 
@@ -58,12 +62,19 @@ class MainActivity : AppCompatActivity() {
                 name = it.getString(index)
             }
         }
+        Log.d("SOAAnalyzer", "Detected file name: $name")
         return name
     }
 
     private fun uploadPdfToServer(pdfUri: Uri) {
-        val inputStream = contentResolver.openInputStream(pdfUri) ?: return
+        val inputStream = contentResolver.openInputStream(pdfUri)
+        if (inputStream == null) {
+            Log.e("SOAAnalyzer", "Unable to open input stream from URI")
+            return
+        }
+
         val fileBytes = inputStream.readBytes()
+        Log.d("SOAAnalyzer", "Read ${fileBytes.size} bytes from PDF")
 
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -84,15 +95,21 @@ class MainActivity : AppCompatActivity() {
             .readTimeout(5, TimeUnit.MINUTES)
             .build()
 
+        Log.d("SOAAnalyzer", "Sending request to server...")
+
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                Log.e("SOAAnalyzer", "HTTP request failed", e)
                 runOnUiThread {
                     outputText.text = "Error: ${e.message}"
                 }
             }
 
             override fun onResponse(call: Call, response: Response) {
+                Log.d("SOAAnalyzer", "Received response: HTTP ${response.code}")
                 val result = response.body?.string() ?: "No response"
+                Log.d("SOAAnalyzer", "Response body (first 300 chars): ${result.take(300)}")
+
                 runOnUiThread {
                     outputText.text = result
                 }
