@@ -3,17 +3,17 @@ package com.mitbapl.soa
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import android.os.Bundle
-import android.os.Environment
+import android.os.*
 import android.provider.OpenableColumns
-import android.util.Log
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import java.io.*
 import java.util.*
 import java.util.concurrent.TimeUnit
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
     private val PICK_PDF_REQUEST = 1
@@ -29,9 +29,12 @@ class MainActivity : AppCompatActivity() {
 
         val uploadButton = findViewById<Button>(R.id.btnUpload)
         val analyzeButton = findViewById<Button>(R.id.btnAnalyze)
+        downloadButton = findViewById(R.id.btnDownload)
         outputText = findViewById(R.id.txtOutput)
         progressBar = findViewById(R.id.progressBar)
-        downloadButton = findViewById(R.id.btnDownload)
+
+        progressBar.visibility = ProgressBar.INVISIBLE
+        downloadButton.visibility = Button.INVISIBLE
 
         uploadButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -48,11 +51,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         downloadButton.setOnClickListener {
-            if (extractedText.isNotEmpty()) {
-                saveTextToFile(extractedText)
-            } else {
-                Toast.makeText(this, "No text to download", Toast.LENGTH_SHORT).show()
-            }
+            saveTextToFileAndShare(extractedText)
         }
     }
 
@@ -77,6 +76,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun uploadPdfToServer(pdfUri: Uri) {
+        progressBar.visibility = ProgressBar.VISIBLE
+        outputText.text = ""
+        downloadButton.visibility = Button.INVISIBLE
+
         val inputStream = contentResolver.openInputStream(pdfUri) ?: return
         val fileBytes = inputStream.readBytes()
 
@@ -99,46 +102,51 @@ class MainActivity : AppCompatActivity() {
             .readTimeout(5, TimeUnit.MINUTES)
             .build()
 
-        runOnUiThread {
-            progressBar.visibility = ProgressBar.VISIBLE
-            downloadButton.visibility = Button.GONE
-            outputText.text = ""
-        }
-
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 runOnUiThread {
-                    progressBar.visibility = ProgressBar.GONE
+                    progressBar.visibility = ProgressBar.INVISIBLE
                     outputText.text = "Error: ${e.message}"
-                    Log.e("SOAAnalyzer", "Upload failed", e)
                 }
             }
 
             override fun onResponse(call: Call, response: Response) {
-                val result = response.body?.string() ?: "No response"
-                extractedText = result
-
+                val json = response.body?.string()
                 runOnUiThread {
-                    progressBar.visibility = ProgressBar.GONE
-                    outputText.text = result
-                    downloadButton.visibility = Button.VISIBLE
-                    Log.d("SOAAnalyzer", "Text extracted successfully")
+                    progressBar.visibility = ProgressBar.INVISIBLE
+                    if (json != null) {
+                        try {
+                            val text = JSONObject(json).getString("text")
+                            extractedText = text
+                            outputText.text = text
+                            downloadButton.visibility = Button.VISIBLE
+                        } catch (e: Exception) {
+                            outputText.text = "Invalid server response"
+                        }
+                    } else {
+                        outputText.text = "Empty response"
+                    }
                 }
             }
         })
     }
 
-    private fun saveTextToFile(text: String) {
-        try {
-            val fileName = "ExtractedSOA.txt"
-            val path = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-            val file = File(path, fileName)
-            file.writeText(text)
-            Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
-            Log.d("SOAAnalyzer", "File saved: ${file.absolutePath}")
-        } catch (e: Exception) {
-            Toast.makeText(this, "Failed to save file: ${e.message}", Toast.LENGTH_SHORT).show()
-            Log.e("SOAAnalyzer", "File save failed", e)
+    private fun saveTextToFileAndShare(text: String) {
+        val file = File(getExternalFilesDir(null), "extracted_text.txt")
+        file.writeText(text)
+
+        val uri = FileProvider.getUriForFile(
+            this,
+            "${packageName}.provider",
+            file
+        )
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+
+        startActivity(Intent.createChooser(intent, "Share extracted text"))
     }
 }
