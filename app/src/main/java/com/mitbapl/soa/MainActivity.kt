@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.*
@@ -18,6 +19,9 @@ class MainActivity : AppCompatActivity() {
     private val PICK_PDF_REQUEST = 1
     private var selectedPdfUri: Uri? = null
     private lateinit var outputText: TextView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var downloadButton: Button
+    private var extractedText: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,6 +30,8 @@ class MainActivity : AppCompatActivity() {
         val uploadButton = findViewById<Button>(R.id.btnUpload)
         val analyzeButton = findViewById<Button>(R.id.btnAnalyze)
         outputText = findViewById(R.id.txtOutput)
+        progressBar = findViewById(R.id.progressBar)
+        downloadButton = findViewById(R.id.btnDownload)
 
         uploadButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -35,11 +41,17 @@ class MainActivity : AppCompatActivity() {
 
         analyzeButton.setOnClickListener {
             if (selectedPdfUri != null) {
-                Log.d("SOAAnalyzer", "Analyze button clicked. URI: $selectedPdfUri")
                 uploadPdfToServer(selectedPdfUri!!)
             } else {
                 Toast.makeText(this, "Please select soa.pdf first", Toast.LENGTH_SHORT).show()
-                Log.w("SOAAnalyzer", "No PDF selected before analyze clicked")
+            }
+        }
+
+        downloadButton.setOnClickListener {
+            if (extractedText.isNotEmpty()) {
+                saveTextToFile(extractedText)
+            } else {
+                Toast.makeText(this, "No text to download", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -49,7 +61,6 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == PICK_PDF_REQUEST && resultCode == Activity.RESULT_OK) {
             selectedPdfUri = data?.data
             Toast.makeText(this, "File selected: ${getFileName(selectedPdfUri!!)}", Toast.LENGTH_SHORT).show()
-            Log.d("SOAAnalyzer", "Selected PDF URI: $selectedPdfUri")
         }
     }
 
@@ -62,19 +73,12 @@ class MainActivity : AppCompatActivity() {
                 name = it.getString(index)
             }
         }
-        Log.d("SOAAnalyzer", "Detected file name: $name")
         return name
     }
 
     private fun uploadPdfToServer(pdfUri: Uri) {
-        val inputStream = contentResolver.openInputStream(pdfUri)
-        if (inputStream == null) {
-            Log.e("SOAAnalyzer", "Unable to open input stream from URI")
-            return
-        }
-
+        val inputStream = contentResolver.openInputStream(pdfUri) ?: return
         val fileBytes = inputStream.readBytes()
-        Log.d("SOAAnalyzer", "Read ${fileBytes.size} bytes from PDF")
 
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -95,25 +99,46 @@ class MainActivity : AppCompatActivity() {
             .readTimeout(5, TimeUnit.MINUTES)
             .build()
 
-        Log.d("SOAAnalyzer", "Sending request to server...")
+        runOnUiThread {
+            progressBar.visibility = ProgressBar.VISIBLE
+            downloadButton.visibility = Button.GONE
+            outputText.text = ""
+        }
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                Log.e("SOAAnalyzer", "HTTP request failed", e)
                 runOnUiThread {
+                    progressBar.visibility = ProgressBar.GONE
                     outputText.text = "Error: ${e.message}"
+                    Log.e("SOAAnalyzer", "Upload failed", e)
                 }
             }
 
             override fun onResponse(call: Call, response: Response) {
-                Log.d("SOAAnalyzer", "Received response: HTTP ${response.code}")
                 val result = response.body?.string() ?: "No response"
-                Log.d("SOAAnalyzer", "Response body (first 300 chars): ${result.take(300)}")
+                extractedText = result
 
                 runOnUiThread {
+                    progressBar.visibility = ProgressBar.GONE
                     outputText.text = result
+                    downloadButton.visibility = Button.VISIBLE
+                    Log.d("SOAAnalyzer", "Text extracted successfully")
                 }
             }
         })
+    }
+
+    private fun saveTextToFile(text: String) {
+        try {
+            val fileName = "ExtractedSOA.txt"
+            val path = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+            val file = File(path, fileName)
+            file.writeText(text)
+            Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            Log.d("SOAAnalyzer", "File saved: ${file.absolutePath}")
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to save file: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("SOAAnalyzer", "File save failed", e)
+        }
     }
 }
