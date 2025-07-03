@@ -49,9 +49,23 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        downloadButton.setOnClickListener {
-            saveTextToFile(latestExtractedText)
-        }
+        downloadBtn.setOnClickListener {
+    val text = outputText.text.toString()
+    val fileName = "extracted_soa.txt"
+
+    try {
+        val downloadsDir = File("/storage/emulated/0/Download")
+        if (!downloadsDir.exists()) downloadsDir.mkdirs()
+
+        val file = File(downloadsDir, fileName)
+        file.writeText(text)
+
+        Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
+    } catch (e: Exception) {
+        Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
+    }
+}
+
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
