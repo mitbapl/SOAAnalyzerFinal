@@ -49,23 +49,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        downloadBtn.setOnClickListener {
-    val text = outputText.text.toString()
-    val fileName = "extracted_soa.txt"
-
-    try {
-        val downloadsDir = File("/storage/emulated/0/Download")
-        if (!downloadsDir.exists()) downloadsDir.mkdirs()
-
-        val file = File(downloadsDir, fileName)
-        file.writeText(text)
-
-        Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
-    } catch (e: Exception) {
-        Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
-    }
-}
-
+        downloadButton.setOnClickListener {
+            saveTextToDownloads(latestExtractedText)
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -125,7 +111,7 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val jsonObject = JSONObject(json)
                     val rawText = jsonObject.getString("text")
-                    latestExtractedText = formatSOAText(rawText)
+                    latestExtractedText = rawText
                     runOnUiThread {
                         outputText.text = latestExtractedText
                         downloadButton.isEnabled = true
@@ -140,41 +126,18 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun formatSOAText(raw: String): String {
-        val lines = raw.lines()
-        val filtered = lines.filter {
-            it.contains(Regex("\\d{2}/\\d{2}/\\d{4}")) &&
-            it.contains(Regex("NEFT|WITHDRAWAL|DEPOSIT", RegexOption.IGNORE_CASE))
-        }
-
-        val formatted = StringBuilder()
-        formatted.append("Date\t\tAmount\t\tType\t\tDetails\n")
-        formatted.append("--------------------------------------------------\n")
-
-        for (line in filtered) {
-            val date = Regex("\\d{2}/\\d{2}/\\d{4}").find(line)?.value ?: "-"
-            val amount = Regex("\\d+\\.\\d{2}").find(line)?.value ?: "-"
-            val type = when {
-                line.contains("withdrawal", true) -> "Withdraw"
-                line.contains("deposit", true) -> "Deposit"
-                line.contains("transfer", true) -> "Transfer"
-                else -> "Other"
-            }
-            val desc = line.take(40)
-            formatted.append("$date\t$amount\t$type\t$desc\n")
-        }
-
-        return formatted.toString()
-    }
-
-    private fun saveTextToFile(text: String) {
+    private fun saveTextToDownloads(text: String) {
+        val fileName = "extracted_soa_${System.currentTimeMillis()}.txt"
         try {
-            val filename = "soa_output_${System.currentTimeMillis()}.txt"
-            val file = File(getExternalFilesDir(null), filename)
+            val downloadsDir = File("/storage/emulated/0/Download")
+            if (!downloadsDir.exists()) downloadsDir.mkdirs()
+
+            val file = File(downloadsDir, fileName)
             file.writeText(text)
-            Toast.makeText(this, "Saved to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+
+            Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Error saving file: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 }
