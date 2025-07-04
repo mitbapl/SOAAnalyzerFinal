@@ -20,7 +20,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var outputText: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var downloadButton: Button
-    private var latestExtractedText: String = ""
+    private lateinit var footerText: TextView
+    private var latestCsvText: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,9 +32,13 @@ class MainActivity : AppCompatActivity() {
         downloadButton = findViewById(R.id.btnDownload)
         outputText = findViewById(R.id.txtOutput)
         progressBar = findViewById(R.id.progressBar)
+        footerText = findViewById(R.id.footerText)
 
         progressBar.visibility = ProgressBar.INVISIBLE
         downloadButton.isEnabled = false
+
+        val version = packageManager.getPackageInfo(packageName, 0).versionName
+        footerText.text = "Prashant L. Mitba - v$version"
 
         uploadButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -50,7 +55,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         downloadButton.setOnClickListener {
-            saveTextToDownloads(latestExtractedText)
+            val fileName = "extracted_soa.csv"
+            try {
+                val downloadsDir = File("/storage/emulated/0/Download")
+                if (!downloadsDir.exists()) downloadsDir.mkdirs()
+                val file = File(downloadsDir, fileName)
+                file.writeText(latestCsvText)
+                Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -111,9 +125,10 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val jsonObject = JSONObject(json)
                     val rawText = jsonObject.getString("text")
-                    latestExtractedText = rawText
+                    val csvText = convertToCsv(rawText)
+                    latestCsvText = csvText
                     runOnUiThread {
-                        outputText.text = latestExtractedText
+                        outputText.text = csvText
                         downloadButton.isEnabled = true
                     }
                 } catch (e: Exception) {
@@ -126,18 +141,23 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun saveTextToDownloads(text: String) {
-        val fileName = "extracted_soa_${System.currentTimeMillis()}.txt"
-        try {
-            val downloadsDir = File("/storage/emulated/0/Download")
-            if (!downloadsDir.exists()) downloadsDir.mkdirs()
+    private fun convertToCsv(raw: String): String {
+        val lines = raw.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val csv = StringBuilder()
+        csv.append("Date,Amount,Type,Details\n")
 
-            val file = File(downloadsDir, fileName)
-            file.writeText(text)
-
-            Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
+        for (line in lines) {
+            val date = Regex("\\d{2}/\\d{2}/\\d{4}").find(line)?.value ?: "-"
+            val amount = Regex("\\d+\\.\\d{2}").find(line)?.value ?: "-"
+            val type = when {
+                line.contains("withdrawal", true) -> "Withdraw"
+                line.contains("deposit", true) -> "Deposit"
+                line.contains("transfer", true) -> "Transfer"
+                else -> "Other"
+            }
+            val desc = line.replace(",", " ").take(50)
+            csv.append("$date,$amount,$type,\"$desc\"\n")
         }
+        return csv.toString()
     }
 }
