@@ -3,16 +3,13 @@ package com.mitbapl.soa
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.provider.OpenableColumns
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
 import org.json.JSONObject
 import java.io.*
-import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -23,8 +20,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var outputText: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var downloadButton: Button
-    private lateinit var footer: TextView
-    private var csvOutput: String = ""
+    private var latestExtractedText: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,17 +31,9 @@ class MainActivity : AppCompatActivity() {
         downloadButton = findViewById(R.id.btnDownload)
         outputText = findViewById(R.id.txtOutput)
         progressBar = findViewById(R.id.progressBar)
-        footer = findViewById(R.id.txtFooter)
 
-        progressBar.visibility = ProgressBar.GONE
+        progressBar.visibility = ProgressBar.INVISIBLE
         downloadButton.isEnabled = false
-
-        val version = try {
-            packageManager.getPackageInfo(packageName, 0).versionName
-        } catch (e: Exception) {
-            "v1.0"
-        }
-        footer.text = "Prashant L. Mitba - v$version"
 
         uploadButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -54,13 +42,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         analyzeButton.setOnClickListener {
-            selectedPdfUri?.let {
-                uploadPdfToServer(it)
-            } ?: Toast.makeText(this, "Please select soa.pdf first", Toast.LENGTH_SHORT).show()
+            if (selectedPdfUri != null) {
+                uploadPdfToServer(selectedPdfUri!!)
+            } else {
+                Toast.makeText(this, "Please select soa.pdf first", Toast.LENGTH_SHORT).show()
+            }
         }
 
         downloadButton.setOnClickListener {
-            saveCsvToDownload(csvOutput)
+            saveTextToDownloads(latestExtractedText)
         }
     }
 
@@ -102,32 +92,34 @@ class MainActivity : AppCompatActivity() {
 
         val client = OkHttpClient.Builder()
             .connectTimeout(5, TimeUnit.MINUTES)
-            .readTimeout(5, TimeUnit.MINUTES)
             .writeTimeout(5, TimeUnit.MINUTES)
+            .readTimeout(5, TimeUnit.MINUTES)
             .build()
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 runOnUiThread {
-                    progressBar.visibility = ProgressBar.GONE
+                    progressBar.visibility = ProgressBar.INVISIBLE
                     outputText.text = "Error: ${e.message}"
                     downloadButton.isEnabled = false
                 }
             }
 
             override fun onResponse(call: Call, response: Response) {
-                val rawJson = response.body?.string() ?: "{}"
-                runOnUiThread { progressBar.visibility = ProgressBar.GONE }
+                runOnUiThread { progressBar.visibility = ProgressBar.INVISIBLE }
+                val json = response.body?.string() ?: "No response"
                 try {
-                    val text = JSONObject(rawJson).getString("text")
-                    csvOutput = convertTextToCsv(text)
+                    val jsonObject = JSONObject(json)
+                    val rawText = jsonObject.getString("text")
+                    val csv = SoaParser.convertTextToCsv(rawText)
+                    latestExtractedText = csv
                     runOnUiThread {
-                        outputText.text = csvOutput
+                        outputText.text = latestExtractedText
                         downloadButton.isEnabled = true
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        outputText.text = "Failed to parse response."
+                        outputText.text = "Error parsing output: ${e.message}"
                         downloadButton.isEnabled = false
                     }
                 }
@@ -135,38 +127,95 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun convertTextToCsv(text: String): String {
-        val builder = StringBuilder()
-        builder.append("Date,Particulars,Cheque/Reference No,Debit,Credit,Balance\n")
-        val lines = text.split("\n")
+    private fun saveTextToDownloads(text: String) {
+        val fileName = "extracted_soa_${System.currentTimeMillis()}.csv"
+        try {
+            val downloadsDir = File("/storage/emulated/0/Download")
+            if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
-        for (line in lines) {
-            if (line.contains(Regex("\\d{2}/\\d{2}/\\d{4}|\\d{2}/\\d{2}/\\d{2}")) &&
-                (line.contains("DEPOSIT", true) || line.contains("WITHDRAWAL", true) || line.contains("NEFT", true))
-            ) {
-                val date = Regex("\\d{2}/\\d{2}/\\d{4}|\\d{2}/\\d{2}/\\d{2}").find(line)?.value ?: "-"
-                val ref = Regex("\\b\\d{4,}\\b").find(line)?.value ?: "-"
-                val debit = if (line.contains("WITHDRAWAL", true)) Regex("\\d+\\.\\d{2}").find(line)?.value else ""
-                val credit = if (line.contains("DEPOSIT", true)) Regex("\\d+\\.\\d{2}").find(line)?.value else ""
-                val balance = Regex("\\d+\\.\\d{2}").findAll(line).lastOrNull()?.value ?: "-"
-                val desc = line.take(30).replace(",", " ")
+            val file = File(downloadsDir, fileName)
+            file.writeText(text)
 
-                builder.append("$date,$desc,$ref,${debit ?: ""},${credit ?: ""},$balance\n")
-            }
+            Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
         }
+    }
+}
 
+// SoaParser embedded directly
+object SoaParser {
+    fun normalizeText(text: String): String {
+        return text.replace(Regex("(\\d{2}/\\d{2}/)\\n(\\d{4})"), "$1$2")
+            .replace(Regex("\n+"), "\n")
+            .replace(Regex("[ \t]+"), " ")
+            .trim()
+    }
+
+    fun detectBankName(text: String): String {
+        val knownBanks = listOf(
+            "State Bank of India", "Bank of Baroda", "Punjab National Bank", "Bank of India",
+            "Union Bank of India", "Canara Bank", "Bank of Maharashtra", "Central Bank of India",
+            "Indian Overseas Bank", "Indian Bank", "UCO Bank", "Punjab & Sind Bank",
+            "HDFC Bank", "ICICI Bank", "Kotak Bank", "Axis Bank", "IndusInd Bank",
+            "IDBI Bank", "Yes Bank", "IDFC First Bank", "Bandhan Bank", "CSB Bank",
+            "SVC Bank", "NKGSB Co-op Bank", "New India Cooperative Bank",
+            "Omprakash Deora People's Coop Bank", "Osmanabad Janata Sahakari Bank"
+        )
+
+        val normalized = text.lowercase(Locale.ROOT)
+        return knownBanks.firstOrNull {
+            normalized.contains(it.lowercase(Locale.ROOT).replace("'", ""))
+        } ?: "Unknown"
+    }
+
+    fun extractTransactions(text: String, bank: String): List<Transaction> {
+        val cleaned = normalizeText(text)
+        val patterns = mapOf(
+            "Union Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<txnId>[A-Z0-9]+)\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+\\(?(?<type>Dr|Cr)\\)?\\s+(?<balance>\\d+\\.\\d{2})"),
+            "Indian Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})\\s+(?<remarks>.+?)"),
+            "HDFC Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{2})\\s+(?<remarks>.+?)\\s+\\d{10,}\\s+\\d{2}/\\d{2}/\\d{2}\\s+(?<amount>\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?)\\s+(?<balance>\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?)"),
+            "ICICI Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+\\d{2}/\\d{2}/\\d{4} - (?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
+            "Axis Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
+            "State Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<type>Dr|Cr)\\s+(?<balance>\\d+\\.\\d{2})")
+            // Add more patterns as needed
+        )
+
+        val regex = patterns[bank] ?: return emptyList()
+
+        return regex.findAll(cleaned).mapNotNull { match ->
+            try {
+                Transaction(
+                    date = match.groups["date"]?.value ?: "",
+                    txnId = match.groups["txnId"]?.value ?: "",
+                    remarks = match.groups["remarks"]?.value ?: "",
+                    amount = match.groups["amount"]?.value ?: "",
+                    balance = match.groups["balance"]?.value ?: ""
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }.toList()
+    }
+
+    fun convertTextToCsv(text: String): String {
+        val bank = detectBankName(text)
+        val transactions = extractTransactions(text, bank)
+        if (transactions.isEmpty()) return "No transactions found for $bank"
+
+        val builder = StringBuilder()
+        builder.append("Date,TxnId,Particulars,Amount,Balance\n")
+        transactions.forEach { txn ->
+            builder.append("${txn.date},${txn.txnId},${txn.remarks},${txn.amount},${txn.balance}\n")
+        }
         return builder.toString()
     }
 
-    private fun saveCsvToDownload(content: String) {
-        try {
-            val fileName = "soa_${System.currentTimeMillis()}.csv"
-            val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val file = File(downloads, fileName)
-            file.writeText(content)
-            Toast.makeText(this, "Saved to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Error saving CSV: ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
+    data class Transaction(
+        val date: String,
+        val txnId: String,
+        val remarks: String,
+        val amount: String,
+        val balance: String
+    )
 }
