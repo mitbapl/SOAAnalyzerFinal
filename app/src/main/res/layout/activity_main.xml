@@ -1,20 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Fixed header -->
+    <!-- Fixed Header -->
     <TextView
-        android:id="@+id/headerTitle"
+        android:id="@+id/txtHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="#6200EE"
+        android:textColor="#FFFFFF"
         android:text="SOA Analyzer"
-        android:gravity="center"
-        android:textStyle="bold"
-        android:textSize="22sp"
         android:padding="12dp"
-        android:background="#E0E0E0"/>
+        android:textSize="18sp"
+        android:gravity="center"/>
 
     <ScrollView
         android:layout_width="match_parent"
@@ -23,21 +24,21 @@
 
         <LinearLayout
             android:orientation="vertical"
+            android:padding="16dp"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="16dp">
+            android:layout_height="wrap_content">
 
             <Button
                 android:id="@+id/btnUpload"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Upload SOA PDF" />
+                android:text="Upload SOA PDF"/>
 
             <Button
                 android:id="@+id/btnAnalyze"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Analyze" />
+                android:text="Analyze"/>
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -45,36 +46,37 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
-                android:indeterminate="true" />
+                android:layout_marginTop="8dp"/>
 
             <TextView
                 android:id="@+id/txtOutput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="14sp"
-                android:padding="8dp"
                 android:textIsSelectable="true"
                 android:scrollbars="vertical"
-                android:minHeight="300dp" />
+                android:minHeight="200dp"
+                android:textSize="14sp"
+                android:padding="8dp"
+                android:layout_marginTop="8dp"/>
 
             <Button
                 android:id="@+id/btnDownload"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Download CSV"
-                android:enabled="false" />
-
+                android:enabled="false"
+                android:layout_marginTop="8dp"/>
         </LinearLayout>
     </ScrollView>
 
-    <!-- Footer with app version and author -->
+    <!-- Fixed Footer -->
     <TextView
-        android:id="@+id/footer"
+        android:id="@+id/txtFooter"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Prashant L. Mitba - v1.0.30"
-        android:gravity="center"
-        android:padding="10dp"
-        android:background="#E0E0E0"
-        android:textSize="12sp"/>
+        android:textAlignment="center"
+        android:padding="12dp"
+        android:textColor="#888888"
+        android:textSize="14sp"/>
 </LinearLayout>
