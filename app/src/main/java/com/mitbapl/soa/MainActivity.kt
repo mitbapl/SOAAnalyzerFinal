@@ -3,6 +3,7 @@ package com.mitbapl.soa
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
@@ -11,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
 import org.json.JSONObject
 import java.io.*
+import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -21,8 +23,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var outputText: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var downloadButton: Button
-    private lateinit var footerText: TextView
-    private var csvContent: String = ""
+    private lateinit var footer: TextView
+    private var csvOutput: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,11 +35,17 @@ class MainActivity : AppCompatActivity() {
         downloadButton = findViewById(R.id.btnDownload)
         outputText = findViewById(R.id.txtOutput)
         progressBar = findViewById(R.id.progressBar)
-        footerText = findViewById(R.id.txtFooter)
+        footer = findViewById(R.id.txtFooter)
 
-        footerText.text = "Prashant L. Mitba - v1.0.30"
         progressBar.visibility = ProgressBar.GONE
         downloadButton.isEnabled = false
+
+        val version = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) {
+            "v1.0"
+        }
+        footer.text = "Prashant L. Mitba - v$version"
 
         uploadButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -48,11 +56,11 @@ class MainActivity : AppCompatActivity() {
         analyzeButton.setOnClickListener {
             selectedPdfUri?.let {
                 uploadPdfToServer(it)
-            } ?: Toast.makeText(this, "Please select SOA PDF first", Toast.LENGTH_SHORT).show()
+            } ?: Toast.makeText(this, "Please select soa.pdf first", Toast.LENGTH_SHORT).show()
         }
 
         downloadButton.setOnClickListener {
-            saveCsvToDownload(csvContent)
+            saveCsvToDownload(csvOutput)
         }
     }
 
@@ -75,10 +83,9 @@ class MainActivity : AppCompatActivity() {
         }
         return name
     }
+
     private fun uploadPdfToServer(pdfUri: Uri) {
         progressBar.visibility = ProgressBar.VISIBLE
-        outputText.text = ""
-
         val inputStream = contentResolver.openInputStream(pdfUri) ?: return
         val fileBytes = inputStream.readBytes()
 
@@ -109,20 +116,18 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onResponse(call: Call, response: Response) {
-                progressBar.post { progressBar.visibility = ProgressBar.GONE }
-                val json = response.body?.string() ?: "No response"
+                val rawJson = response.body?.string() ?: "{}"
+                runOnUiThread { progressBar.visibility = ProgressBar.GONE }
                 try {
-                    val text = JSONObject(json).getString("text")
-                    val csv = convertTextToCSV(text)
-                    csvContent = csv
-
+                    val text = JSONObject(rawJson).getString("text")
+                    csvOutput = convertTextToCsv(text)
                     runOnUiThread {
-                        outputText.text = csv
+                        outputText.text = csvOutput
                         downloadButton.isEnabled = true
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        outputText.text = "Parsing error: ${e.message}"
+                        outputText.text = "Failed to parse response."
                         downloadButton.isEnabled = false
                     }
                 }
@@ -130,35 +135,38 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun convertTextToCSV(text: String): String {
-        val lines = text.split("\n").filter { it.contains(Regex("\\d{2}/\\d{2}/\\d{4}")) }
-        val csv = StringBuilder("Date,Description,Amount,Type\n")
+    private fun convertTextToCsv(text: String): String {
+        val builder = StringBuilder()
+        builder.append("Date,Particulars,Cheque/Reference No,Debit,Credit,Balance\n")
+        val lines = text.split("\n")
+
         for (line in lines) {
-            val date = Regex("\\d{2}/\\d{2}/\\d{4}").find(line)?.value ?: ""
-            val amount = Regex("\\d+\\.\\d{2}").find(line)?.value ?: ""
-            val type = when {
-                line.contains("withdraw", true) -> "Debit"
-                line.contains("deposit", true) -> "Credit"
-                else -> ""
+            if (line.contains(Regex("\\d{2}/\\d{2}/\\d{4}|\\d{2}/\\d{2}/\\d{2}")) &&
+                (line.contains("DEPOSIT", true) || line.contains("WITHDRAWAL", true) || line.contains("NEFT", true))
+            ) {
+                val date = Regex("\\d{2}/\\d{2}/\\d{4}|\\d{2}/\\d{2}/\\d{2}").find(line)?.value ?: "-"
+                val ref = Regex("\\b\\d{4,}\\b").find(line)?.value ?: "-"
+                val debit = if (line.contains("WITHDRAWAL", true)) Regex("\\d+\\.\\d{2}").find(line)?.value else ""
+                val credit = if (line.contains("DEPOSIT", true)) Regex("\\d+\\.\\d{2}").find(line)?.value else ""
+                val balance = Regex("\\d+\\.\\d{2}").findAll(line).lastOrNull()?.value ?: "-"
+                val desc = line.take(30).replace(",", " ")
+
+                builder.append("$date,$desc,$ref,${debit ?: ""},${credit ?: ""},$balance\n")
             }
-            val desc = line.replace(date, "").replace(amount, "").take(40).trim()
-            csv.append("$date,\"$desc\",$amount,$type\n")
         }
-        return csv.toString()
+
+        return builder.toString()
     }
 
     private fun saveCsvToDownload(content: String) {
         try {
             val fileName = "soa_${System.currentTimeMillis()}.csv"
-            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).path)
-            if (!dir.exists()) dir.mkdirs()
-
-            val file = File(dir, fileName)
+            val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(downloads, fileName)
             file.writeText(content)
-            Toast.makeText(this, "Saved: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Saved to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Error saving CSV: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 }
-
