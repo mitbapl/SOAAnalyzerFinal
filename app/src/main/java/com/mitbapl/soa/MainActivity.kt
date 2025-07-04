@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.OpenableColumns
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -11,20 +12,17 @@ import okhttp3.*
 import org.json.JSONObject
 import java.io.*
 import java.util.*
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import java.util.concurrent.TimeUnit
-import android.os.Build
-import android.content.pm.PackageManager
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 class MainActivity : AppCompatActivity() {
-
     private val PICK_PDF_REQUEST = 1
     private var selectedPdfUri: Uri? = null
     private lateinit var outputText: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var downloadButton: Button
-    private lateinit var footer: TextView
-    private var latestCSVText: String = ""
+    private lateinit var footerText: TextView
+    private var csvContent: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,21 +30,14 @@ class MainActivity : AppCompatActivity() {
 
         val uploadButton = findViewById<Button>(R.id.btnUpload)
         val analyzeButton = findViewById<Button>(R.id.btnAnalyze)
+        downloadButton = findViewById(R.id.btnDownload)
         outputText = findViewById(R.id.txtOutput)
         progressBar = findViewById(R.id.progressBar)
-        downloadButton = findViewById(R.id.btnDownload)
-        footer = findViewById(R.id.footer)
+        footerText = findViewById(R.id.txtFooter)
 
-        downloadButton.isEnabled = false
+        footerText.text = "Prashant L. Mitba - v1.0.30"
         progressBar.visibility = ProgressBar.GONE
-
-        // Dynamically set app version
-        val version = try {
-            packageManager.getPackageInfo(packageName, 0).versionName
-        } catch (e: PackageManager.NameNotFoundException) {
-            "1.0"
-        }
-        footer.text = "Prashant L. Mitba - v$version"
+        downloadButton.isEnabled = false
 
         uploadButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -55,15 +46,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         analyzeButton.setOnClickListener {
-            if (selectedPdfUri != null) {
-                uploadPdfToServer(selectedPdfUri!!)
-            } else {
-                Toast.makeText(this, "Please select soa.pdf first", Toast.LENGTH_SHORT).show()
-            }
+            selectedPdfUri?.let {
+                uploadPdfToServer(it)
+            } ?: Toast.makeText(this, "Please select SOA PDF first", Toast.LENGTH_SHORT).show()
         }
 
         downloadButton.setOnClickListener {
-            if (latestCSVText.isNotEmpty()) saveCSVToDownloads(latestCSVText)
+            saveCsvToDownload(csvContent)
         }
     }
 
@@ -86,10 +75,10 @@ class MainActivity : AppCompatActivity() {
         }
         return name
     }
-
     private fun uploadPdfToServer(pdfUri: Uri) {
         progressBar.visibility = ProgressBar.VISIBLE
         outputText.text = ""
+
         val inputStream = contentResolver.openInputStream(pdfUri) ?: return
         val fileBytes = inputStream.readBytes()
 
@@ -106,8 +95,8 @@ class MainActivity : AppCompatActivity() {
 
         val client = OkHttpClient.Builder()
             .connectTimeout(5, TimeUnit.MINUTES)
-            .writeTimeout(5, TimeUnit.MINUTES)
             .readTimeout(5, TimeUnit.MINUTES)
+            .writeTimeout(5, TimeUnit.MINUTES)
             .build()
 
         client.newCall(request).enqueue(object : Callback {
@@ -120,20 +109,20 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onResponse(call: Call, response: Response) {
-                runOnUiThread { progressBar.visibility = ProgressBar.GONE }
+                progressBar.post { progressBar.visibility = ProgressBar.GONE }
                 val json = response.body?.string() ?: "No response"
                 try {
-                    val jsonObject = JSONObject(json)
-                    val rawText = jsonObject.getString("text")
-                    val csvOutput = convertToCSV(rawText)
-                    latestCSVText = csvOutput
+                    val text = JSONObject(json).getString("text")
+                    val csv = convertTextToCSV(text)
+                    csvContent = csv
+
                     runOnUiThread {
-                        outputText.text = csvOutput
+                        outputText.text = csv
                         downloadButton.isEnabled = true
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        outputText.text = "Error parsing output: ${e.message}"
+                        outputText.text = "Parsing error: ${e.message}"
                         downloadButton.isEnabled = false
                     }
                 }
@@ -141,34 +130,35 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun convertToCSV(raw: String): String {
-        val sb = StringBuilder()
-        sb.append("Date,Amount,Type,Details\n")
-
-        val lines = raw.lines()
+    private fun convertTextToCSV(text: String): String {
+        val lines = text.split("\n").filter { it.contains(Regex("\\d{2}/\\d{2}/\\d{4}")) }
+        val csv = StringBuilder("Date,Description,Amount,Type\n")
         for (line in lines) {
-            val date = Regex("\\d{2}/\\d{2}/\\d{4}").find(line)?.value ?: continue
-            val amount = Regex("\\d+\\.\\d{2}").find(line)?.value ?: "-"
+            val date = Regex("\\d{2}/\\d{2}/\\d{4}").find(line)?.value ?: ""
+            val amount = Regex("\\d+\\.\\d{2}").find(line)?.value ?: ""
             val type = when {
-                line.contains("withdraw", true) -> "Withdraw"
-                line.contains("deposit", true) -> "Deposit"
-                line.contains("transfer", true) -> "Transfer"
-                else -> "Other"
+                line.contains("withdraw", true) -> "Debit"
+                line.contains("deposit", true) -> "Credit"
+                else -> ""
             }
-            val desc = line.take(30).replace(",", " ")
-            sb.append("$date,$amount,$type,$desc\n")
+            val desc = line.replace(date, "").replace(amount, "").take(40).trim()
+            csv.append("$date,\"$desc\",$amount,$type\n")
         }
-        return sb.toString()
+        return csv.toString()
     }
 
-    private fun saveCSVToDownloads(text: String) {
+    private fun saveCsvToDownload(content: String) {
         try {
-            val filename = "soa_export_${System.currentTimeMillis()}.csv"
-            val file = File("/storage/emulated/0/Download", filename)
-            file.writeText(text)
-            Toast.makeText(this, "Saved to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            val fileName = "soa_${System.currentTimeMillis()}.csv"
+            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).path)
+            if (!dir.exists()) dir.mkdirs()
+
+            val file = File(dir, fileName)
+            file.writeText(content)
+            Toast.makeText(this, "Saved: ${file.absolutePath}", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Error saving file: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 }
+
