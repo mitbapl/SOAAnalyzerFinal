@@ -11,10 +11,10 @@
         android:layout_height="wrap_content"
         android:text="SOA Analyzer"
         android:gravity="center"
-        android:textSize="20sp"
         android:textStyle="bold"
+        android:textSize="22sp"
         android:padding="12dp"
-        android:background="#D0D0D0" />
+        android:background="#E0E0E0"/>
 
     <ScrollView
         android:layout_width="match_parent"
@@ -44,17 +44,18 @@
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:visibility="gone" />
+                android:visibility="gone"
+                android:indeterminate="true" />
 
             <TextView
                 android:id="@+id/txtOutput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="200dp"
                 android:textSize="14sp"
                 android:padding="8dp"
+                android:textIsSelectable="true"
                 android:scrollbars="vertical"
-                android:textIsSelectable="true" />
+                android:minHeight="300dp" />
 
             <Button
                 android:id="@+id/btnDownload"
@@ -62,17 +63,18 @@
                 android:layout_height="wrap_content"
                 android:text="Download CSV"
                 android:enabled="false" />
+
         </LinearLayout>
     </ScrollView>
 
-    <!-- Footer -->
+    <!-- Footer with app version and author -->
     <TextView
-        android:id="@+id/footerInfo"
+        android:id="@+id/footer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:text="Prashant L. Mitba - v1.0.30"
         android:gravity="center"
-        android:textSize="12sp"
-        android:padding="8dp"
-        android:background="#D0D0D0"
-        android:text="Prashant L. Mitba - v1.0.30" />
+        android:padding="10dp"
+        android:background="#E0E0E0"
+        android:textSize="12sp"/>
 </LinearLayout>
