@@ -15,8 +15,10 @@
         android:text="SOA Analyzer"
         android:padding="12dp"
         android:textSize="18sp"
-        android:gravity="center"/>
+        android:gravity="center"
+        android:importantForAccessibility="yes"/>
 
+    <!-- Scrollable Body -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -32,13 +34,15 @@
                 android:id="@+id/btnUpload"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Upload SOA PDF"/>
+                android:text="Upload SOA PDF"
+                android:layout_marginTop="8dp"/>
 
             <Button
                 android:id="@+id/btnAnalyze"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Analyze"/>
+                android:text="Analyze"
+                android:layout_marginTop="8dp"/>
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -46,7 +50,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
-                android:layout_marginTop="8dp"/>
+                android:layout_marginTop="8dp"
+                android:contentDescription="Progress indicator for file processing"/>
 
             <TextView
                 android:id="@+id/txtOutput"
@@ -57,7 +62,9 @@
                 android:minHeight="200dp"
                 android:textSize="14sp"
                 android:padding="8dp"
-                android:layout_marginTop="8dp"/>
+                android:layout_marginTop="8dp"
+                android:background="#F8F8F8"
+                android:textColor="#333333"/>
 
             <Button
                 android:id="@+id/btnDownload"
