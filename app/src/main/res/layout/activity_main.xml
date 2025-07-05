@@ -5,18 +5,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- App Header -->
-    <TextView
-        android:id="@+id/txtHeader"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#6200EE"
-        android:textColor="#FFFFFF"
-        android:text="SOA Analyzer"
-        android:padding="12dp"
-        android:textSize="18sp"
-        android:gravity="center"/>
-
     <!-- Main Scrollable Area -->
     <ScrollView
         android:layout_width="match_parent"
@@ -83,7 +71,7 @@
         android:id="@+id/txtFooter"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Prashant L. Mitba - v1.0.32"
+        android:text="Prashant L. Mitba "
         android:textAlignment="center"
         android:padding="12dp"
         android:textColor="#888888"
