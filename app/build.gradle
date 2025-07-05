@@ -12,7 +12,7 @@ android {
         applicationId "com.mitbapl.soa"
         minSdkVersion 21
         targetSdkVersion 34
-        versionCode 47
+        versionCode 48
         versionName "1.0.47"
     }
 
