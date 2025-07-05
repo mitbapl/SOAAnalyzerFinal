@@ -4,7 +4,7 @@ workflows:
     max_build_duration: 30
     environment:
       groups:
-        - github-secrets 
+        - github-secrets
       vars:
         JAVA_VERSION: 17
 
@@ -14,10 +14,12 @@ workflows:
 
       - name: Auto-increment versionCode
         script: |
-          echo "Auto-incrementing versionCode in build.gradle"
-          VERSION_CODE=$(grep versionCode app/build.gradle | awk '{print $2}')
+          echo "🔢 Auto-incrementing versionCode in build.gradle"
+          FILE="app/build.gradle"
+          VERSION_LINE=$(grep versionCode $FILE)
+          VERSION_CODE=$(echo $VERSION_LINE | grep -o '[0-9]\+')
           NEW_VERSION_CODE=$((VERSION_CODE + 1))
-          sed -i.bak "s/versionCode $VERSION_CODE/versionCode $NEW_VERSION_CODE/" app/build.gradle
+          sed -i.bak "s/versionCode $VERSION_CODE/versionCode $NEW_VERSION_CODE/" $FILE
           echo "Updated versionCode to $NEW_VERSION_CODE"
 
       - name: Build AAB
@@ -35,7 +37,7 @@ workflows:
             echo "No changes to commit"
           else
             git add app/build.gradle
-            git commit -m "Auto-incremented versionCode"
+            git commit -m "🤖 Auto-incremented versionCode to $NEW_VERSION_CODE"
             git push origin HEAD
           fi
 
