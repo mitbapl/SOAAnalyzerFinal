@@ -1,3 +1,4 @@
+// MainActivity.kt
 package com.mitbapl.soa
 
 import android.app.Activity
@@ -113,13 +114,9 @@ class MainActivity : AppCompatActivity() {
                     val jsonObject = JSONObject(json)
                     val rawText = jsonObject.getString("text")
                     val bank = SoaParser.detectBankName(rawText)
-
-                    Log.d("BANK", "Detected: $bank")
-                    Toast.makeText(this@MainActivity, "Bank Detected: $bank", Toast.LENGTH_SHORT).show()
-
+                    Toast.makeText(this@MainActivity, "Bank: $bank", Toast.LENGTH_LONG).show()
                     val csv = SoaParser.convertTextToCsv(rawText)
                     latestExtractedText = csv
-
                     runOnUiThread {
                         outputText.text = latestExtractedText
                         downloadButton.isEnabled = true
@@ -139,10 +136,8 @@ class MainActivity : AppCompatActivity() {
         try {
             val downloadsDir = File("/storage/emulated/0/Download")
             if (!downloadsDir.exists()) downloadsDir.mkdirs()
-
             val file = File(downloadsDir, fileName)
             file.writeText(text)
-
             Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
@@ -150,11 +145,10 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-// SoaParser embedded directly
 object SoaParser {
     fun normalizeText(text: String): String {
         return text.replace(Regex("(\\d{2}/\\d{2}/)\\n(\\d{4})"), "$1$2")
-            .replace(Regex("\n+"), "\n")
+            .replace(Regex("\\n+"), "\n")
             .replace(Regex("[ \t]+"), " ")
             .trim()
     }
@@ -169,7 +163,6 @@ object SoaParser {
             "SVC Bank", "NKGSB Co-op Bank", "New India Cooperative Bank",
             "Omprakash Deora People's Coop Bank", "Osmanabad Janata Sahakari Bank"
         )
-
         val normalized = text.lowercase(Locale.ROOT)
         return knownBanks.firstOrNull {
             normalized.contains(it.lowercase(Locale.ROOT).replace("'", ""))
@@ -179,32 +172,14 @@ object SoaParser {
     fun extractTransactions(text: String, bank: String): List<Transaction> {
         val cleaned = normalizeText(text)
         val patterns = mapOf(
-    "HDFC Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{2})\\s+(?<remarks>.+?)\\s+\\d{10,}\\s+\\d{2}/\\d{2}/\\d{2}\\s+(?<amount>\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?)\\s+(?<balance>\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?)"),
-
-    "ICICI Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+\\d{2}/\\d{2}/\\d{4} - (?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-
-    "Axis Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-
-    "State Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<type>Dr|Cr)\\s+(?<balance>\\d+\\.\\d{2})"),
-
-    "Union Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<txnId>[A-Z0-9]+)\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+\\(?(?<type>Dr|Cr)\\)?\\s+(?<balance>\\d+\\.\\d{2})"),
-
-    "Indian Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})\\s+(?<remarks>.+?)"),
-
-    "Canara Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-
-    "Bank of Baroda" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-
-    "Bank of Maharashtra" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<remarks>.+?)\\n(?<txnId>\\d+)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-
-    "IDFC First Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-
-    "Kotak Bank" to Regex("(?<remarks>UPI-.+?)\\s+(?<type>CR|DR)(?<amount>\\d{1,3}(?:,\\d{3})*\\.\\d{2})\\s+(?<date>\\d{2}/\\d{2}/\\d{4})\\s+CR\\s+(?<balance>\\d{1,3}(?:,\\d{3})*\\.\\d{2})"),
-
-    "SVC Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<remarks>UPI/(?:DR|CR)/.+?)\\s+(?<amount>\\d{1,3}(?:,\\d{3})*\\.\\d{2})\\s+(?<balance>\\d{1,3}(?:,\\d{3})*\\.\\d{2})\\s+CR")
-)
+            "HDFC Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{2})\\s+(?<remarks>.+?)\\s+\\d{10,}\\s+\\d{2}/\\d{2}/\\d{2}\\s+(?<amount>\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?)\\s+(?<balance>\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?)"),
+            "ICICI Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+\\d{2}/\\d{2}/\\d{4} - (?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
+            "Axis Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
+            "State Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<type>Dr|Cr)\\s+(?<balance>\\d+\\.\\d{2})"),
+            "Union Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<txnId>[A-Z0-9]+)\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+\\(?(?<type>Dr|Cr)\\)?\\s+(?<balance>\\d+\\.\\d{2})"),
+            "Indian Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})\\s+(?<remarks>.+?)")
+        )
         val regex = patterns[bank] ?: return emptyList()
-
         return regex.findAll(cleaned).mapNotNull { match ->
             try {
                 Transaction(
@@ -223,11 +198,9 @@ object SoaParser {
     fun convertTextToCsv(text: String): String {
         val bank = detectBankName(text)
         val transactions = extractTransactions(text, bank)
-
         if (transactions.isEmpty()) {
-            return "No transactions found for $bank\n\n--- RAW TEXT SAMPLE ---\n${text.take(500)}"
+            return "Date,TxnId,Particulars,Amount,Balance\n(No transactions found for $bank)\n\n" + text.take(500)
         }
-
         val builder = StringBuilder()
         builder.append("Date,TxnId,Particulars,Amount,Balance\n")
         transactions.forEach { txn ->
