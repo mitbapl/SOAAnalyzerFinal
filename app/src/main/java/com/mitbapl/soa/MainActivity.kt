@@ -186,16 +186,25 @@ object SoaParser {
     fun extractTransactions(text: String, bank: String): List<Transaction> {
         val cleaned = normalizeText(text)
         val patterns = mapOf(
-            "HDFC Bank" to Regex("""(?<date>\d{2}/\d{2}/\d{2})\s+(?<remarks>.+?)\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""),
-            "Union Bank of India" to Regex("""(?<date>\d{2}/\d{2}/\d{4})\s+(?<txnId>[A-Z0-9]+)\s+(?<remarks>.+?)\s+(?<amount>\d+\.?\d*)\s+\(?(?<type>Dr|Cr)\)?\s+(?<balance>\d+\.?\d*)"""),
-            "Indian Bank" to Regex("""(?<date>\d{2}/\d{2}/\d{4})\s+(?<credit>\d+\.\d{2})\s+(?<debit>\d+\.\d{2})\s+(?<balance>\d+\.\d{2})\s+(?<remarks>.+)"""),
-            "Bank of Maharashtra" to Regex("""(?<date>\d{2}/\d{2}/\d{4})\s+UPI\s+(?<txnId>\d+).+?\s+(?<amount>[\d,]+\.\d{2})\s+-\s+(?<balance>[\d,]+\.\d{2})"""),
-            "Bank of India" to Regex("""(?<date>\d{2}/\d{2}/\d{4})\s+-\s+(?<remarks>.+?)\s+(?<amount>\d+\.\d{2})\s+0\.0\s+(?<balance>\d+\.\d{2})"""),
-            "Kotak Bank" to Regex("""(?<remarks>UPI-\d+)\s+(?<type>CR|DR)(?<amount>[\d,]+\.\d{2})(?<date>\d{2}/\d{2}/\d{4})\s+CR(?<balance>[\d,]+\.\d{2})"""),
-            "ICICI Bank" to Regex("(?<date>\d{2}/\d{2}/\d{4})\s+\d{2}/\d{2}/\d{4} - (?<remarks>.+?)\s+(?<amount>\d+\.\d{2})\s+(?<balance>\d+\.\d{2})"),
-            "Axis Bank" to Regex("(?<date>\d{2}-\d{2}-\d{4})\s+(?<remarks>.+?)\s+(?<amount>\d+\.\d{2})\s+(?<balance>\d+\.\d{2})"),
-            "State Bank of India" to Regex("(?<date>\d{2}/\d{2}/\d{4})\s+(?<remarks>.+?)\s+(?<amount>\d+\.\d{2})\s+(?<type>Dr|Cr)\s+(?<balance>\d+\.\d{2})")
-        )
+    "HDFC Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{2})\\s+(?<remarks>.+?)\\s+(?<amount>[\\d,]+\\.\\d{2})\\s+(?<balance>[\\d,]+\\.\\d{2})"),
+
+    "Union Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<txnId>[A-Z0-9]+)\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.?\\d*)\\s+\\(?(?<type>Dr|Cr)\\)?\\s+(?<balance>\\d+\\.?\\d*)"),
+
+    "Indian Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<credit>\\d+\\.\\d{2})\\s+(?<debit>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})\\s+(?<remarks>.+)"),
+
+    "Bank of Maharashtra" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+UPI\\s+(?<txnId>\\d+).+?\\s+(?<amount>[\\d,]+\\.\\d{2})\\s+-\\s+(?<balance>[\\d,]+\\.\\d{2})"),
+
+    "Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+-\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+0\\.0\\s+(?<balance>\\d+\\.\\d{2})"),
+
+    "Kotak Bank" to Regex("(?<remarks>UPI-\\d+)\\s+(?<type>CR|DR)(?<amount>[\\d,]+\\.\\d{2})(?<date>\\d{2}/\\d{2}/\\d{4})\\s+CR(?<balance>[\\d,]+\\.\\d{2})"),
+
+    "ICICI Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+\\d{2}/\\d{2}/\\d{4} - (?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
+
+    "Axis Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
+
+    "State Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<remarks>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<type>Dr|Cr)\\s+(?<balance>\\d+\\.\\d{2})")
+)
+
 
         val regex = patterns[bank] ?: return emptyList()
 
