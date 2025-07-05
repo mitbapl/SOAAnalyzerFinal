@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- App Header -->
     <TextView
         android:id="@+id/txtHeader"
         android:layout_width="match_parent"
@@ -16,6 +17,7 @@
         android:textSize="18sp"
         android:gravity="center"/>
 
+    <!-- Main Scrollable Area -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -27,12 +29,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
+            <!-- Upload Button -->
             <Button
                 android:id="@+id/btnUpload"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Upload SOA PDF"/>
 
+            <!-- Analyze Button -->
             <Button
                 android:id="@+id/btnAnalyze"
                 android:layout_width="match_parent"
@@ -40,6 +44,7 @@
                 android:text="Analyze"
                 android:layout_marginTop="8dp"/>
 
+            <!-- Progress Bar -->
             <ProgressBar
                 android:id="@+id/progressBar"
                 style="?android:attr/progressBarStyleHorizontal"
@@ -48,6 +53,7 @@
                 android:visibility="gone"
                 android:layout_marginTop="8dp"/>
 
+            <!-- Text Output Area -->
             <TextView
                 android:id="@+id/txtOutput"
                 android:layout_width="match_parent"
@@ -59,8 +65,9 @@
                 android:padding="8dp"
                 android:layout_marginTop="8dp"
                 android:background="#F8F8F8"
-                android:textColor="#FFFFFF"/>
+                android:textColor="#000000"/>
 
+            <!-- Download Button -->
             <Button
                 android:id="@+id/btnDownload"
                 android:layout_width="match_parent"
@@ -71,6 +78,7 @@
         </LinearLayout>
     </ScrollView>
 
+    <!-- Footer -->
     <TextView
         android:id="@+id/txtFooter"
         android:layout_width="match_parent"
