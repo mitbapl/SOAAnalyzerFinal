@@ -46,7 +46,7 @@ class MainActivity : AppCompatActivity() {
             if (selectedPdfUri != null) {
                 uploadPdfToServer(selectedPdfUri!!)
             } else {
-                Toast.makeText(this, "Please select soa.pdf first", Toast.LENGTH_SHORT).show()
+                safeToast("Please select soa.pdf first")
             }
         }
 
@@ -59,7 +59,9 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == PICK_PDF_REQUEST && resultCode == Activity.RESULT_OK) {
             selectedPdfUri = data?.data
-            Toast.makeText(this, "File selected: ${getFileName(selectedPdfUri!!)}", Toast.LENGTH_SHORT).show()
+            selectedPdfUri?.let {
+                safeToast("File selected: ${getFileName(it)}")
+            }
         }
     }
 
@@ -115,9 +117,7 @@ class MainActivity : AppCompatActivity() {
                     val bank = SoaParser.detectBankName(rawText)
 
                     Log.d("BANK", "Detected: $bank")
-                    runOnUiThread {
-                        Toast.makeText(this@MainActivity, "Bank Detected: $bank", Toast.LENGTH_SHORT).show()
-                    }
+                    safeToast("Bank Detected: $bank")
 
                     val csv = SoaParser.convertTextToCsv(rawText)
                     latestExtractedText = csv
@@ -145,13 +145,21 @@ class MainActivity : AppCompatActivity() {
             val file = File(downloadsDir, fileName)
             file.writeText(text)
 
-            Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            safeToast("Saved to ${file.absolutePath}")
         } catch (e: Exception) {
-            Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
+            safeToast("Failed to save: ${e.message}")
+        }
+    }
+
+    // Helper to always toast on the UI thread
+    private fun safeToast(message: String) {
+        runOnUiThread {
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         }
     }
 }
 
+// SoaParser embedded directly
 object SoaParser {
     fun normalizeText(text: String): String {
         return text.replace(Regex("(\\d{2}/\\d{2}/)\\n(\\d{4})"), "$1$2")
