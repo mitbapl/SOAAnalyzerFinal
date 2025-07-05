@@ -160,11 +160,12 @@ class MainActivity : AppCompatActivity() {
 
 object SoaParser {
     fun normalizeText(text: String): String {
-        return text.replace(Regex("(\d{2}/\d{2}/)\n(\d{4})"), "$1$2")
-            .replace(Regex("\n+"), "\n")
-            .replace(Regex("[ \t]+"), " ")
-            .trim()
-    }
+    return text.replace(Regex("(\\d{2}/\\d{2}/)\\n(\\d{4})"), "$1$2")
+        .replace(Regex("\\n+"), "\n")
+        .replace(Regex("[ \\t]+"), " ")
+        .trim()
+}
+
 
     fun detectBankName(text: String): String {
         val knownBanks = listOf(
