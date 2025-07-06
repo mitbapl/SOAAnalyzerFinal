@@ -124,9 +124,9 @@ class MainActivity : AppCompatActivity() {
 
                     val bank = detectBankName(rawText)
                     val csv = convertTextToCsv(rawText)
-
-                    latestExtractedText = csv
                     val summary = getStatementSummary(csv)
+
+                    latestExtractedText = csv // ✅ keep CSV for download
 
                     runOnUiThread {
                         outputText.text = summary
@@ -168,7 +168,7 @@ class MainActivity : AppCompatActivity() {
             .map { it.trim() }
             .filter {
                 it.isNotBlank() &&
-                        !it.matches(Regex("""(?i)(Page No|Statement of account|MR\.|HDFC BANK LIMITED|Joint Holders|Account No|A/C Open Date|Branch Code|MICR|GSTN|Email|Phone|Address|Currency|.*GSTIN.*|.*Senapati Bapat Marg.*|Contents of this statement.*)"""))
+                !it.matches(Regex("""(?i)(Page No|Statement of account|MR\.|HDFC BANK LIMITED|Joint Holders|Account No|A/C Open Date|Branch Code|MICR|GSTN|Email|Phone|Address|Currency|.*GSTIN.*|.*Senapati Bapat Marg.*|Contents of this statement.*)"""))
             }
 
         val result = mutableListOf<String>()
@@ -267,7 +267,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun getStatementSummary(csv: String): String {
-        val lines = csv.lines().drop(1).filter { it.isNotBlank() } // skip header
+        val lines = csv.lines().drop(1).filter { it.isNotBlank() }
         if (lines.isEmpty()) return "No transaction data."
 
         var debitCount = 0
