@@ -35,7 +35,6 @@ class MainActivity : AppCompatActivity() {
         progressBar.visibility = ProgressBar.GONE
         downloadButton.isEnabled = false
 
-        // Set footer version dynamically
         val footer = findViewById<TextView>(R.id.txtFooter)
         val version = try {
             packageManager.getPackageInfo(packageName, 0).versionName
@@ -127,8 +126,10 @@ class MainActivity : AppCompatActivity() {
                     val csv = convertTextToCsv(rawText)
 
                     latestExtractedText = csv
+                    val summary = getStatementSummary(csv)
+
                     runOnUiThread {
-                        outputText.text = latestExtractedText
+                        outputText.text = summary
                         downloadButton.isEnabled = true
                         safeToast("Bank Detected: $bank")
                     }
@@ -162,14 +163,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==================== NORMALIZATION & PARSING ====================
-
     fun normalizeText(text: String): String {
         val lines = text.lines()
             .map { it.trim() }
             .filter {
                 it.isNotBlank() &&
-                !it.matches(Regex("""(?i)(Page No|Statement of account|MR\.|HDFC BANK LIMITED|Joint Holders|Account No|A/C Open Date|Branch Code|MICR|GSTN|Email|Phone|Address|Currency|.*GSTIN.*|.*Senapati Bapat Marg.*|Contents of this statement.*)"""))
+                        !it.matches(Regex("""(?i)(Page No|Statement of account|MR\.|HDFC BANK LIMITED|Joint Holders|Account No|A/C Open Date|Branch Code|MICR|GSTN|Email|Phone|Address|Currency|.*GSTIN.*|.*Senapati Bapat Marg.*|Contents of this statement.*)"""))
             }
 
         val result = mutableListOf<String>()
@@ -227,7 +226,7 @@ class MainActivity : AppCompatActivity() {
                     prevBalance == null -> Pair("", "")
                     balance > prevBalance -> Pair("", amountStr)
                     balance < prevBalance -> Pair(amountStr, "")
-                    else -> Pair("", "") // no movement
+                    else -> Pair("", "")
                 }
 
                 prevBalance = balance
@@ -265,6 +264,60 @@ class MainActivity : AppCompatActivity() {
             builder.append("${txn.date},${txn.txnId},\"${txn.remarks}\",${cleanDebit},${cleanCredit},${cleanBalance}\n")
         }
         return builder.toString()
+    }
+
+    fun getStatementSummary(csv: String): String {
+        val lines = csv.lines().drop(1).filter { it.isNotBlank() } // skip header
+        if (lines.isEmpty()) return "No transaction data."
+
+        var debitCount = 0
+        var creditCount = 0
+        var debitTotal = 0.0
+        var creditTotal = 0.0
+
+        val balances = mutableListOf<Double>()
+
+        lines.forEach { line ->
+            val parts = line.split(",")
+            if (parts.size < 6) return@forEach
+
+            val debit = parts[3].toDoubleOrNull()
+            val credit = parts[4].toDoubleOrNull()
+            val balance = parts[5].toDoubleOrNull()
+
+            if (debit != null && debit > 0) {
+                debitCount++
+                debitTotal += debit
+            }
+            if (credit != null && credit > 0) {
+                creditCount++
+                creditTotal += credit
+            }
+            if (balance != null) balances.add(balance)
+        }
+
+        val openingBalance = if (balances.size > 1) {
+            val first = balances.first()
+            val firstLine = lines[0].split(",")
+            val delta = if (firstLine[3].isNotBlank()) {
+                first + firstLine[3].toDoubleOrNull()!!
+            } else {
+                first - firstLine[4].toDoubleOrNull()!!
+            }
+            delta
+        } else 0.0
+
+        val closingBalance = balances.lastOrNull() ?: 0.0
+
+        return """
+            STATEMENT SUMMARY :-
+            Opening Balance  : ₹%,.2f
+            Debit Count      : $debitCount
+            Credit Count     : $creditCount
+            Total Debits     : ₹%,.2f
+            Total Credits    : ₹%,.2f
+            Closing Balance  : ₹%,.2f
+        """.trimIndent().format(openingBalance, debitTotal, creditTotal, closingBalance)
     }
 
     data class Transaction(
