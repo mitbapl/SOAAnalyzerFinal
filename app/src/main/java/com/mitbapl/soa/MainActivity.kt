@@ -225,20 +225,27 @@ object SoaParser {
 }
 
 // ========= Regex Patterns ==========
-
 object BankRegexPatterns {
     val patterns = mapOf(
-        "HDFC Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<desc>.+?)\\s+(?<amount>\\d{1,3}(?:,\\d{3})*\\.\\d{2})\\s+(?<balance>\\d{1,3}(?:,\\d{3})*\\.\\d{2})"),
-        "ICICI Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<desc>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-        "Axis Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<desc>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-        "State Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<desc>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<type>Dr|Cr)\\s+(?<balance>\\d+\\.\\d{2})"),
-        "Union Bank of India" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<txnId>[A-Z0-9]+)\\s+(?<desc>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+\\(?(?<type>Dr|Cr)\\)?\\s+(?<balance>\\d+\\.\\d{2})"),
-        "Indian Bank" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<credit>\\d+\\.\\d{2})\\s+(?<debit>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})\\s+(?<desc>.+)"),
-        "Canara Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<desc>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-        "Bank of Baroda" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<desc>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-        "IDFC First Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<desc>.+?)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})"),
-        "Kotak Bank" to Regex("(?<desc>UPI-.+?)\\s+(?<type>CR|DR)(?<amount>[\\d,]+\\.\\d{2})\\s+(?<date>\\d{2}/\\d{2}/\\d{4})\\s+CR\\s+(?<balance>[\\d,]+\\.\\d{2})"),
-        "SVC Bank" to Regex("(?<date>\\d{2}-\\d{2}-\\d{4})\\s+(?<desc>UPI/(?:DR|CR)/.+?)\\s+(?<amount>[\\d,]+\\.\\d{2})\\s+(?<balance>[\\d,]+\\.\\d{2})\\s+CR"),
-        "Bank of Maharashtra" to Regex("(?<date>\\d{2}/\\d{2}/\\d{4})\\s+(?<desc>.+?)\\n(?<txnId>\\d+)\\s+(?<amount>\\d+\\.\\d{2})\\s+(?<balance>\\d+\\.\\d{2})")
+        "HDFC Bank" to Regex(
+            """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+\d{9,18}\s+\d{2}/\d{2}/\d{2}\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
+        ),
+        "Bank of Maharashtra" to Regex(
+            """(?<date>\d{2}/\d{2}/\d{4})\s+UPI\s+(?<txnId>\d+)/(?:\w+)/(?<desc>.+?)\s+\d+\s+(?<debit>[\d,]+\.\d{2})\s+-\s+(?<balance>[\d,]+\.\d{2})"""
+        ),
+        "Union Bank of India" to Regex(
+            """(?<date>\d{2}/\d{2}/\d{4})\s+(?<txnId>S\d+)\s+(?<desc>.+?)\s+(?<amount>[\d,]+\.\d{2})\s+\(?(?<type>Dr|Cr)\)?\s+(?<balance>[\d,]+\.\d{2})\s+\(Cr\)"""
+        ),
+        "Indian Bank" to Regex(
+            """(?<date>\d{2}/\d{2}/\d{4})\s+\d{2}/\d{2}/\d{4}\s+(?<credit>[\d,]+\.\d{2})\s+(?<debit>[\d,]+\.\d{2})\s+(?<desc>.+)"""
+        ),
+        "Kotak Bank" to Regex(
+            """(?<desc>UPI\/.+?)\/(?<ref>\d+)\/UPI\s+UPI-\d+\s+(?<type>CR|DR)(?<amount>[\d,]+\.\d{2})\s+(?<date>\d{2}/\d{2}/\d{4})\s+CR(?<balance>[\d,]+\.\d{2})"""
+        ),
+        "ICICI Bank" to Regex(
+            """(?<date>\d{2}/\d{2}/\d{4})\s+\d{2}/\d{2}/\d{4}\s+-\s+UPI/(?<desc>.+?)\/[^\s]+\s+(?<debit>[\d,]+\.\d{2})\s+(?<credit>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
+        )
     )
 }
+
+
