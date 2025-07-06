@@ -12,8 +12,8 @@ android {
         applicationId "com.mitbapl.soa"
         minSdkVersion 21
         targetSdkVersion 34
-        versionCode 54
-        versionName "1.0.53"
+        versionCode 55
+        versionName "1.0.55"
     }
 
     buildTypes {
