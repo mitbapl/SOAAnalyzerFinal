@@ -35,6 +35,15 @@ class MainActivity : AppCompatActivity() {
         progressBar.visibility = ProgressBar.GONE
         downloadButton.isEnabled = false
 
+        // Set footer version dynamically
+        val footer = findViewById<TextView>(R.id.txtFooter)
+        val version = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) {
+            "?"
+        }
+        footer.text = "Prashant L. Mitba • v$version"
+
         uploadButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
             intent.type = "application/pdf"
@@ -200,32 +209,43 @@ class MainActivity : AppCompatActivity() {
             """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?<ref>\d{10,}|[A-Z0-9]+)\s+(?<valuedt>\d{2}/\d{2}/\d{2})\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
         )
 
-        return regex.findAll(cleaned).mapNotNull { match ->
+        val transactions = mutableListOf<Transaction>()
+        var prevBalance: Double? = null
+
+        for (match in regex.findAll(cleaned)) {
             try {
                 val date = match.groups["date"]?.value ?: ""
                 val desc = match.groups["desc"]?.value?.replace(",", " ") ?: ""
                 val ref = match.groups["ref"]?.value ?: ""
-                val amount = match.groups["amount"]?.value ?: ""
-                val balance = match.groups["balance"]?.value ?: ""
+                val amountStr = match.groups["amount"]?.value ?: ""
+                val balanceStr = match.groups["balance"]?.value ?: ""
 
-                val creditOrDebit = if (desc.contains("CR") || desc.contains("CREDIT", ignoreCase = true)) {
-                    Pair("", amount)
-                } else {
-                    Pair(amount, "")
+                val amount = amountStr.replace(",", "").toDoubleOrNull() ?: continue
+                val balance = balanceStr.replace(",", "").toDoubleOrNull() ?: continue
+
+                val (debit, credit) = when {
+                    prevBalance == null -> Pair("", "")
+                    balance > prevBalance -> Pair("", amountStr)
+                    balance < prevBalance -> Pair(amountStr, "")
+                    else -> Pair("", "") // no movement
                 }
 
-                Transaction(
-                    date = date,
-                    txnId = ref,
-                    remarks = desc,
-                    debit = creditOrDebit.first,
-                    credit = creditOrDebit.second,
-                    balance = balance
+                prevBalance = balance
+
+                transactions.add(
+                    Transaction(
+                        date = date,
+                        txnId = ref,
+                        remarks = desc,
+                        debit = debit,
+                        credit = credit,
+                        balance = balanceStr
+                    )
                 )
-            } catch (e: Exception) {
-                null
-            }
-        }.toList()
+            } catch (_: Exception) { }
+        }
+
+        return transactions
     }
 
     fun convertTextToCsv(text: String): String {
