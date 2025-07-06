@@ -124,12 +124,10 @@ class MainActivity : AppCompatActivity() {
 
                     val bank = detectBankName(rawText)
                     val csv = convertTextToCsv(rawText)
-                    val summary = getStatementSummary(csv)
 
-                    latestExtractedText = csv // ✅ keep CSV for download
-
+                    latestExtractedText = csv
                     runOnUiThread {
-                        outputText.text = summary
+                        outputText.text = latestExtractedText
                         downloadButton.isEnabled = true
                         safeToast("Bank Detected: $bank")
                     }
@@ -162,6 +160,8 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         }
     }
+
+    // ==================== NORMALIZATION & PARSING ====================
 
     fun normalizeText(text: String): String {
         val lines = text.lines()
@@ -223,7 +223,7 @@ class MainActivity : AppCompatActivity() {
                 val balance = balanceStr.replace(",", "").toDoubleOrNull() ?: continue
 
                 val (debit, credit) = when {
-                    prevBalance == null -> Pair("", "")
+                    prevBalance == null -> Pair("", "") // first entry unknown
                     balance > prevBalance -> Pair("", amountStr)
                     balance < prevBalance -> Pair(amountStr, "")
                     else -> Pair("", "")
@@ -264,60 +264,6 @@ class MainActivity : AppCompatActivity() {
             builder.append("${txn.date},${txn.txnId},\"${txn.remarks}\",${cleanDebit},${cleanCredit},${cleanBalance}\n")
         }
         return builder.toString()
-    }
-
-    fun getStatementSummary(csv: String): String {
-        val lines = csv.lines().drop(1).filter { it.isNotBlank() }
-        if (lines.isEmpty()) return "No transaction data."
-
-        var debitCount = 0
-        var creditCount = 0
-        var debitTotal = 0.0
-        var creditTotal = 0.0
-
-        val balances = mutableListOf<Double>()
-
-        lines.forEach { line ->
-            val parts = line.split(",")
-            if (parts.size < 6) return@forEach
-
-            val debit = parts[3].toDoubleOrNull()
-            val credit = parts[4].toDoubleOrNull()
-            val balance = parts[5].toDoubleOrNull()
-
-            if (debit != null && debit > 0) {
-                debitCount++
-                debitTotal += debit
-            }
-            if (credit != null && credit > 0) {
-                creditCount++
-                creditTotal += credit
-            }
-            if (balance != null) balances.add(balance)
-        }
-
-        val openingBalance = if (balances.size > 1) {
-            val first = balances.first()
-            val firstLine = lines[0].split(",")
-            val delta = if (firstLine[3].isNotBlank()) {
-                first + firstLine[3].toDoubleOrNull()!!
-            } else {
-                first - firstLine[4].toDoubleOrNull()!!
-            }
-            delta
-        } else 0.0
-
-        val closingBalance = balances.lastOrNull() ?: 0.0
-
-        return """
-            STATEMENT SUMMARY :-
-            Opening Balance  : ₹%,.2f
-            Debit Count      : $debitCount
-            Credit Count     : $creditCount
-            Total Debits     : ₹%,.2f
-            Total Credits    : ₹%,.2f
-            Closing Balance  : ₹%,.2f
-        """.trimIndent().format(openingBalance, debitTotal, creditTotal, closingBalance)
     }
 
     data class Transaction(
