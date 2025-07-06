@@ -156,19 +156,30 @@ class MainActivity : AppCompatActivity() {
     // ==================== NORMALIZATION & PARSING ====================
 
     fun normalizeText(text: String): String {
-        val lines = text.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+        val lines = text.lines()
+            .map { it.trim() }
+            .filter {
+                it.isNotEmpty() &&
+                !it.matches(
+                    Regex("""(?i)(Page No|M/S\.|Statement From|Account Branch|City|State|Phone no\.|Email|Account No|HDFC BANK LIMITED|.*GSTN:.*|.*GSTIN number.*|Contents of this statement.*)""")
+                )
+            }
 
-        val merged = mutableListOf<String>()
+        val result = mutableListOf<String>()
+        var currentLine = ""
+
         for (line in lines) {
-            if (line.startsWith("-MIR") || line.startsWith("-XXXXXXXX")) continue
-            if (Regex("""^\d{2}/\d{2}/\d{2}""").containsMatchIn(line)) {
-                merged.add(line)
-            } else if (merged.isNotEmpty()) {
-                merged[merged.size - 1] += " " + line
+            if (Regex("""^\d{2}/\d{2}/\d{2}\s""").containsMatchIn(line)) {
+                if (currentLine.isNotEmpty()) result.add(currentLine.trim())
+                currentLine = line
+            } else {
+                currentLine += " $line"
             }
         }
 
-        return merged.joinToString("\n")
+        if (currentLine.isNotEmpty()) result.add(currentLine.trim())
+
+        return result.joinToString("\n")
     }
 
     fun detectBankName(text: String): String {
@@ -186,6 +197,10 @@ class MainActivity : AppCompatActivity() {
         val regex = Regex(
             """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?<ref>\d{10,18}|000000000000000)\s+(?<valuedt>\d{2}/\d{2}/\d{2})\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
         )
+
+        // Uncomment for debugging missed lines
+        // val unmatched = cleaned.lines().filterNot { regex.containsMatchIn(it) }
+        // println("Unmatched lines:\n" + unmatched.joinToString("\n"))
 
         return regex.findAll(cleaned).mapNotNull { match ->
             try {
@@ -226,7 +241,10 @@ class MainActivity : AppCompatActivity() {
         val builder = StringBuilder()
         builder.append("Date,TxnId,Particulars,Debit,Credit,Balance\n")
         transactions.forEach { txn ->
-            builder.append("${txn.date},${txn.txnId},${txn.remarks},${txn.debit},${txn.credit},${txn.balance}\n")
+            val cleanDebit = txn.debit.replace(",", "")
+            val cleanCredit = txn.credit.replace(",", "")
+            val cleanBalance = txn.balance.replace(",", "")
+            builder.append("${txn.date},${txn.txnId},\"${txn.remarks}\",${cleanDebit},${cleanCredit},${cleanBalance}\n")
         }
         return builder.toString()
     }
