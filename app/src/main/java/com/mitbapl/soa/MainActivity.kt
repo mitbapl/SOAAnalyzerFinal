@@ -115,11 +115,9 @@ class MainActivity : AppCompatActivity() {
                     val jsonObject = JSONObject(json)
                     val rawText = jsonObject.getString("text")
 
-                    Log.d("TIKA_RAW", rawText.take(1000))
-
                     val bank = detectBankName(rawText)
-                    safeToast("Bank Detected: $bank")
                     Log.d("BANK", "Detected: $bank")
+                    safeToast("Bank Detected: $bank")
 
                     val csv = convertTextToCsv(rawText)
                     latestExtractedText = csv
@@ -163,8 +161,8 @@ class MainActivity : AppCompatActivity() {
 
     fun normalizeText(text: String): String {
         return text
-            .replace(Regex("(\\d{2}/\\d{2}/)\\n(\\d{4})"), "$1$2") // fix 02/04/\n2025
-            .replace(Regex("(?<=\\d{2}/\\d{2}/\\d{2,4})\\s*\\n\\s*"), " ") // narration line join
+            .replace(Regex("(\\d{2}/\\d{2}/)\\n(\\d{4})"), "$1$2")
+            .replace(Regex("(?<=\\d{2}/\\d{2}/\\d{2,4})\\s*\\n\\s*"), " ")
             .replace(Regex("\\n+"), "\n")
             .replace(Regex("[ \t]+"), " ")
             .trim()
@@ -180,20 +178,20 @@ class MainActivity : AppCompatActivity() {
 
     fun extractTransactions(text: String, bank: String): List<Transaction> {
         val cleaned = normalizeText(text)
-        Log.d("CLEANED_TEXT", cleaned.take(1000))
         val regex = BankRegexPatterns.patterns[bank] ?: return emptyList()
 
         return regex.findAll(cleaned).mapNotNull { match ->
             try {
-                val amount = match.groups["credit"]?.value?.takeIf { it != "0.00" }
-                    ?: match.groups["debit"]?.value?.let { "-$it" }
-                    ?: match.groups["amount"]?.value ?: ""
+                val debit = match.groups["debit"]?.value ?: ""
+                val credit = match.groups["credit"]?.value ?: ""
+                val amount = match.groups["amount"]?.value ?: ""
 
                 Transaction(
                     date = match.groups["date"]?.value ?: "",
                     txnId = match.groups["txnId"]?.value ?: "",
                     remarks = match.groups["desc"]?.value ?: match.groups["remarks"]?.value ?: "",
-                    amount = amount,
+                    debit = if (debit.isNotEmpty()) debit else if (amount.isNotEmpty() && amount.startsWith("-")) amount.drop(1) else "",
+                    credit = if (credit.isNotEmpty()) credit else if (amount.isNotEmpty() && !amount.startsWith("-")) amount else "",
                     balance = match.groups["balance"]?.value ?: ""
                 )
             } catch (e: Exception) {
@@ -211,9 +209,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         val builder = StringBuilder()
-        builder.append("Date,TxnId,Particulars,Amount,Balance\n")
+        builder.append("Date,TxnId,Particulars,Debit,Credit,Balance\n")
         transactions.forEach { txn ->
-            builder.append("${txn.date},${txn.txnId},${txn.remarks},${txn.amount},${txn.balance}\n")
+            builder.append("${txn.date},${txn.txnId},${txn.remarks},${txn.debit},${txn.credit},${txn.balance}\n")
         }
         return builder.toString()
     }
@@ -222,14 +220,15 @@ class MainActivity : AppCompatActivity() {
         val date: String,
         val txnId: String,
         val remarks: String,
-        val amount: String,
+        val debit: String,
+        val credit: String,
         val balance: String
     )
 
     object BankRegexPatterns {
         val patterns = mapOf(
             "HDFC Bank" to Regex(
-                """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?:\d{10,18}\s+)?\d{2}/\d{2}/\d{2}\s+(?:(?<debit>[\d,]+\.\d{2})\s+)?(?:(?<credit>[\d,]+\.\d{2})\s+)?(?<balance>[\d,]+\.\d{2})"""
+                """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?:\d{10,18}\s+)?(?<valuedt>\d{2}/\d{2}/\d{2})\s+(?:(?<debit>[\d,]+\.\d{2})\s+)?(?:(?<credit>[\d,]+\.\d{2})\s+)?(?<balance>[\d,]+\.\d{2})"""
             )
         )
     }
