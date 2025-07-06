@@ -163,21 +163,25 @@ class MainActivity : AppCompatActivity() {
                 !it.matches(Regex("""(?i)(Page No|Statement of account|MR\.|HDFC BANK LIMITED|Joint Holders|Account No|A/C Open Date|Branch Code|MICR|GSTN|Email|Phone|Address|Currency|.*GSTIN.*|.*Senapati Bapat Marg.*|Contents of this statement.*)"""))
             }
 
-        val merged = mutableListOf<String>()
+        val result = mutableListOf<String>()
         var current = ""
 
+        fun isNewTransaction(line: String): Boolean {
+            return Regex("""^\d{2}/\d{2}/\d{2}\s""").matches(line)
+        }
+
         for (line in lines) {
-            if (Regex("""^\d{2}/\d{2}/\d{2}\s""").matches(line)) {
-                if (current.isNotBlank()) merged.add(current.trim())
+            if (isNewTransaction(line)) {
+                if (current.isNotBlank()) result.add(current.trim())
                 current = line
             } else {
                 current += " $line"
             }
         }
 
-        if (current.isNotBlank()) merged.add(current.trim())
+        if (current.isNotBlank()) result.add(current.trim())
 
-        return merged.joinToString("\n")
+        return result.joinToString("\n")
     }
 
     fun detectBankName(text: String): String {
