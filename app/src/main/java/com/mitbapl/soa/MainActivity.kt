@@ -163,8 +163,8 @@ class MainActivity : AppCompatActivity() {
 
     fun normalizeText(text: String): String {
         return text
-            .replace(Regex("(\\d{2}/\\d{2}/)\\n(\\d{4})"), "$1$2") // date split
-            .replace(Regex("(?<=\\d{2}/\\d{2}/\\d{2,4})\\s*\\n\\s*"), " ") // narration broken
+            .replace(Regex("(\\d{2}/\\d{2}/)\\n(\\d{4})"), "$1$2") // fix 02/04/\n2025
+            .replace(Regex("(?<=\\d{2}/\\d{2}/\\d{2,4})\\s*\\n\\s*"), " ") // narration line join
             .replace(Regex("\\n+"), "\n")
             .replace(Regex("[ \t]+"), " ")
             .trim()
@@ -229,22 +229,7 @@ class MainActivity : AppCompatActivity() {
     object BankRegexPatterns {
         val patterns = mapOf(
             "HDFC Bank" to Regex(
-                """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+\d{10,18}\s+\d{2}/\d{2}/\d{2}\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
-            ),
-            "Bank of Maharashtra" to Regex(
-                """(?<date>\d{2}/\d{2}/\d{4})\s+UPI\s+(?<txnId>\d+)/(?:\w+)/(?<desc>.+?)\s+\d+\s+(?<debit>[\d,]+\.\d{2})\s+-\s+(?<balance>[\d,]+\.\d{2})"""
-            ),
-            "Union Bank of India" to Regex(
-                """(?<date>\d{2}/\d{2}/\d{4})\s+(?<txnId>S\d+)\s+(?<desc>.+?)\s+(?<amount>[\d,]+\.\d{2})\s+\(?(?<type>Dr|Cr)\)?\s+(?<balance>[\d,]+\.\d{2})\s+\(Cr\)"""
-            ),
-            "Indian Bank" to Regex(
-                """(?<date>\d{2}/\d{2}/\d{4})\s+\d{2}/\d{2}/\d{4}\s+(?<credit>[\d,]+\.\d{2})\s+(?<debit>[\d,]+\.\d{2})\s+(?<desc>.+)"""
-            ),
-            "Kotak Bank" to Regex(
-                """(?<desc>UPI\/.+?)\/(?<ref>\d+)\/UPI\s+UPI-\d+\s+(?<type>CR|DR)(?<amount>[\d,]+\.\d{2})\s+(?<date>\d{2}/\d{2}/\d{4})\s+CR(?<balance>[\d,]+\.\d{2})"""
-            ),
-            "Generic UPI Format" to Regex(
-                """(?<date>\d{2}/\d{2}/\d{4})\s+\d{2}/\d{2}/\d{4}\s+-\s+UPI/(?<desc>.+?)\/[^\s]+\s+(?<debit>[\d,]+\.\d{2})\s+(?<credit>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
+                """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?:\d{10,18}\s+)?\d{2}/\d{2}/\d{2}\s+(?:(?<debit>[\d,]+\.\d{2})\s+)?(?:(?<credit>[\d,]+\.\d{2})\s+)?(?<balance>[\d,]+\.\d{2})"""
             )
         )
     }
