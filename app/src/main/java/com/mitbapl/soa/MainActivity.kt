@@ -114,12 +114,14 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val jsonObject = JSONObject(json)
                     val rawText = jsonObject.getString("text")
-                    val bank = SoaParser.detectBankName(rawText)
 
-                    Log.d("BANK", "Detected: $bank")
+                    Log.d("TIKA_RAW", rawText.take(1000))
+
+                    val bank = detectBankName(rawText)
                     safeToast("Bank Detected: $bank")
+                    Log.d("BANK", "Detected: $bank")
 
-                    val csv = SoaParser.convertTextToCsv(rawText)
+                    val csv = convertTextToCsv(rawText)
                     latestExtractedText = csv
 
                     runOnUiThread {
@@ -156,13 +158,13 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         }
     }
-}
 
-// ========= SoaParser ==========
+    // ==================== TEXT NORMALIZER + PARSER ===================
 
-object SoaParser {
     fun normalizeText(text: String): String {
-        return text.replace(Regex("(\\d{2}/\\d{2}/)\\n(\\d{4})"), "$1$2")
+        return text
+            .replace(Regex("(\\d{2}/\\d{2}/)\\n(\\d{4})"), "$1$2") // date split
+            .replace(Regex("(?<=\\d{2}/\\d{2}/\\d{2,4})\\s*\\n\\s*"), " ") // narration broken
             .replace(Regex("\\n+"), "\n")
             .replace(Regex("[ \t]+"), " ")
             .trim()
@@ -178,6 +180,7 @@ object SoaParser {
 
     fun extractTransactions(text: String, bank: String): List<Transaction> {
         val cleaned = normalizeText(text)
+        Log.d("CLEANED_TEXT", cleaned.take(1000))
         val regex = BankRegexPatterns.patterns[bank] ?: return emptyList()
 
         return regex.findAll(cleaned).mapNotNull { match ->
@@ -222,30 +225,27 @@ object SoaParser {
         val amount: String,
         val balance: String
     )
-}
 
-// ========= Regex Patterns ==========
-object BankRegexPatterns {
-    val patterns = mapOf(
-        "HDFC Bank" to Regex(
-            """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+\d{9,18}\s+\d{2}/\d{2}/\d{2}\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
-        ),
-        "Bank of Maharashtra" to Regex(
-            """(?<date>\d{2}/\d{2}/\d{4})\s+UPI\s+(?<txnId>\d+)/(?:\w+)/(?<desc>.+?)\s+\d+\s+(?<debit>[\d,]+\.\d{2})\s+-\s+(?<balance>[\d,]+\.\d{2})"""
-        ),
-        "Union Bank of India" to Regex(
-            """(?<date>\d{2}/\d{2}/\d{4})\s+(?<txnId>S\d+)\s+(?<desc>.+?)\s+(?<amount>[\d,]+\.\d{2})\s+\(?(?<type>Dr|Cr)\)?\s+(?<balance>[\d,]+\.\d{2})\s+\(Cr\)"""
-        ),
-        "Indian Bank" to Regex(
-            """(?<date>\d{2}/\d{2}/\d{4})\s+\d{2}/\d{2}/\d{4}\s+(?<credit>[\d,]+\.\d{2})\s+(?<debit>[\d,]+\.\d{2})\s+(?<desc>.+)"""
-        ),
-        "Kotak Bank" to Regex(
-            """(?<desc>UPI\/.+?)\/(?<ref>\d+)\/UPI\s+UPI-\d+\s+(?<type>CR|DR)(?<amount>[\d,]+\.\d{2})\s+(?<date>\d{2}/\d{2}/\d{4})\s+CR(?<balance>[\d,]+\.\d{2})"""
-        ),
-        "ICICI Bank" to Regex(
-            """(?<date>\d{2}/\d{2}/\d{4})\s+\d{2}/\d{2}/\d{4}\s+-\s+UPI/(?<desc>.+?)\/[^\s]+\s+(?<debit>[\d,]+\.\d{2})\s+(?<credit>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
+    object BankRegexPatterns {
+        val patterns = mapOf(
+            "HDFC Bank" to Regex(
+                """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+\d{10,18}\s+\d{2}/\d{2}/\d{2}\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
+            ),
+            "Bank of Maharashtra" to Regex(
+                """(?<date>\d{2}/\d{2}/\d{4})\s+UPI\s+(?<txnId>\d+)/(?:\w+)/(?<desc>.+?)\s+\d+\s+(?<debit>[\d,]+\.\d{2})\s+-\s+(?<balance>[\d,]+\.\d{2})"""
+            ),
+            "Union Bank of India" to Regex(
+                """(?<date>\d{2}/\d{2}/\d{4})\s+(?<txnId>S\d+)\s+(?<desc>.+?)\s+(?<amount>[\d,]+\.\d{2})\s+\(?(?<type>Dr|Cr)\)?\s+(?<balance>[\d,]+\.\d{2})\s+\(Cr\)"""
+            ),
+            "Indian Bank" to Regex(
+                """(?<date>\d{2}/\d{2}/\d{4})\s+\d{2}/\d{2}/\d{4}\s+(?<credit>[\d,]+\.\d{2})\s+(?<debit>[\d,]+\.\d{2})\s+(?<desc>.+)"""
+            ),
+            "Kotak Bank" to Regex(
+                """(?<desc>UPI\/.+?)\/(?<ref>\d+)\/UPI\s+UPI-\d+\s+(?<type>CR|DR)(?<amount>[\d,]+\.\d{2})\s+(?<date>\d{2}/\d{2}/\d{4})\s+CR(?<balance>[\d,]+\.\d{2})"""
+            ),
+            "Generic UPI Format" to Regex(
+                """(?<date>\d{2}/\d{2}/\d{4})\s+\d{2}/\d{2}/\d{4}\s+-\s+UPI/(?<desc>.+?)\/[^\s]+\s+(?<debit>[\d,]+\.\d{2})\s+(?<credit>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
+            )
         )
-    )
+    }
 }
-
-
