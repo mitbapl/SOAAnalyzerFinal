@@ -159,27 +159,25 @@ class MainActivity : AppCompatActivity() {
         val lines = text.lines()
             .map { it.trim() }
             .filter {
-                it.isNotEmpty() &&
-                !it.matches(
-                    Regex("""(?i)(Page No|M/S\.|Statement From|Account Branch|City|State|Phone no\.|Email|Account No|HDFC BANK LIMITED|.*GSTN:.*|.*GSTIN number.*|Contents of this statement.*)""")
-                )
+                it.isNotBlank() &&
+                !it.matches(Regex("""(?i)(Page No|Statement of account|MR\.|HDFC BANK LIMITED|Joint Holders|Account No|A/C Open Date|Branch Code|MICR|GSTN|Email|Phone|Address|Currency|.*GSTIN.*|.*Senapati Bapat Marg.*|Contents of this statement.*)"""))
             }
 
-        val result = mutableListOf<String>()
-        var currentLine = ""
+        val merged = mutableListOf<String>()
+        var current = ""
 
         for (line in lines) {
-            if (Regex("""^\d{2}/\d{2}/\d{2}\s""").containsMatchIn(line)) {
-                if (currentLine.isNotEmpty()) result.add(currentLine.trim())
-                currentLine = line
+            if (Regex("""^\d{2}/\d{2}/\d{2}\s""").matches(line)) {
+                if (current.isNotBlank()) merged.add(current.trim())
+                current = line
             } else {
-                currentLine += " $line"
+                current += " $line"
             }
         }
 
-        if (currentLine.isNotEmpty()) result.add(currentLine.trim())
+        if (current.isNotBlank()) merged.add(current.trim())
 
-        return result.joinToString("\n")
+        return merged.joinToString("\n")
     }
 
     fun detectBankName(text: String): String {
@@ -195,12 +193,8 @@ class MainActivity : AppCompatActivity() {
         if (bank != "HDFC Bank") return emptyList()
 
         val regex = Regex(
-            """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?<ref>\d{10,18}|000000000000000)\s+(?<valuedt>\d{2}/\d{2}/\d{2})\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
+            """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?<ref>\d{10,}|[A-Z0-9]+)\s+(?<valuedt>\d{2}/\d{2}/\d{2})\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
         )
-
-        // Uncomment for debugging missed lines
-        // val unmatched = cleaned.lines().filterNot { regex.containsMatchIn(it) }
-        // println("Unmatched lines:\n" + unmatched.joinToString("\n"))
 
         return regex.findAll(cleaned).mapNotNull { match ->
             try {
@@ -261,7 +255,7 @@ class MainActivity : AppCompatActivity() {
     object BankRegexPatterns {
         val patterns = mapOf(
             "HDFC Bank" to Regex(
-                """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?<ref>\d{10,18}|000000000000000)\s+(?<valuedt>\d{2}/\d{2}/\d{2})\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
+                """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?<ref>\d{10,}|[A-Z0-9]+)\s+(?<valuedt>\d{2}/\d{2}/\d{2})\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
             )
         )
     }
