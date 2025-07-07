@@ -32,7 +32,7 @@
                 android:text="Analyze"
                 android:layout_marginTop="8dp"/>
 
-            <!-- Download Button (moved here) -->
+            <!-- Download Button -->
             <Button
                 android:id="@+id/btnDownload"
                 android:layout_width="match_parent"
@@ -50,19 +50,33 @@
                 android:visibility="gone"
                 android:layout_marginTop="8dp"/>
 
-            <!-- Output Text -->
+            <!-- Output summary header -->
             <TextView
                 android:id="@+id/txtOutput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:text="Transactions will be listed here."
                 android:textIsSelectable="true"
-                android:scrollbars="vertical"
-                android:minHeight="200dp"
+                android:minHeight="48dp"
                 android:textSize="14sp"
                 android:padding="8dp"
                 android:layout_marginTop="8dp"
                 android:background="#F8F8F8"
-                android:textColor="#000000"/>
+                android:textColor="#000000" />
+
+            <!-- FY Summary Box -->
+            <TextView
+                android:id="@+id/txtSummary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textIsSelectable="true"
+                android:scrollbars="vertical"
+                android:minHeight="100dp"
+                android:textSize="14sp"
+                android:padding="8dp"
+                android:layout_marginTop="8dp"
+                android:background="#FFF8DC"
+                android:textColor="#000000" />
         </LinearLayout>
     </ScrollView>
 
