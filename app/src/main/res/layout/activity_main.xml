@@ -44,11 +44,12 @@
             <!-- Progress Bar -->
             <ProgressBar
                 android:id="@+id/progressBar"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
+                style="?android:attr/progressBarStyleLarge"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
                 android:visibility="gone"
-                android:layout_marginTop="8dp"/>
+                android:layout_marginTop="12dp" />
 
             <!-- Output summary header -->
             <TextView
