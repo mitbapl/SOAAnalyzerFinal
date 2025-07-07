@@ -18,6 +18,7 @@ class MainActivity : AppCompatActivity() {
     private val PICK_PDF_REQUEST = 1
     private var selectedPdfUri: Uri? = null
     private lateinit var outputText: TextView
+    private lateinit var summaryText: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var downloadButton: Button
     private var latestExtractedText: String = ""
@@ -30,6 +31,7 @@ class MainActivity : AppCompatActivity() {
         val analyzeButton = findViewById<Button>(R.id.btnAnalyze)
         downloadButton = findViewById(R.id.btnDownload)
         outputText = findViewById(R.id.txtOutput)
+        summaryText = findViewById(R.id.txtSummary)
         progressBar = findViewById(R.id.progressBar)
 
         progressBar.visibility = ProgressBar.GONE
@@ -123,11 +125,14 @@ class MainActivity : AppCompatActivity() {
                     val rawText = jsonObject.getString("text")
 
                     val bank = detectBankName(rawText)
+                    val transactions = extractTransactions(rawText, bank)
+                    val summary = summarizeByFinancialYear(transactions)
                     val csv = convertTextToCsv(rawText)
-
                     latestExtractedText = csv
+
                     runOnUiThread {
-                        outputText.text = latestExtractedText
+                        outputText.text = "Transactions Parsed: ${transactions.size}"
+                        summaryText.text = summary
                         downloadButton.isEnabled = true
                         safeToast("Bank Detected: $bank")
                     }
@@ -161,25 +166,63 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==================== NORMALIZATION & PARSING ====================
+    fun summarizeByFinancialYear(transactions: List<Transaction>): String {
+        val fyMap = mutableMapOf<String, MutableList<Transaction>>()
+
+        fun getFY(date: String): String {
+            val parts = date.split("/")
+            if (parts.size != 3) return "Unknown"
+            val m = parts[1].toIntOrNull() ?: return "Unknown"
+            val y = parts[2].toIntOrNull() ?: return "Unknown"
+            return if (m >= 4) "20$y–20${y + 1}" else "20${y - 1}–20$y"
+        }
+
+        transactions.forEach { txn ->
+            val fy = getFY(txn.date)
+            fyMap.getOrPut(fy) { mutableListOf() }.add(txn)
+        }
+
+        val builder = StringBuilder()
+        builder.append("FY        | Debits     | Credits    | Debit Count | Credit Count\n")
+        builder.append("-------------------------------------------------------------\n")
+
+        for ((fy, txns) in fyMap) {
+            val debits = txns.mapNotNull { it.debit.replace(",", "").toDoubleOrNull() }.sum()
+            val credits = txns.mapNotNull { it.credit.replace(",", "").toDoubleOrNull() }.sum()
+            val debitCount = txns.count { it.debit.isNotBlank() }
+            val creditCount = txns.count { it.credit.isNotBlank() }
+            builder.append(String.format("%-10s | %11.2f | %11.2f | %12d | %13d\n", fy, debits, credits, debitCount, creditCount))
+        }
+
+        return builder.toString()
+    }
+
+    data class Transaction(
+        val date: String,
+        val txnId: String,
+        val remarks: String,
+        val debit: String,
+        val credit: String,
+        val balance: String
+    )
+
+    fun detectBankName(text: String): String {
+        val knownBanks = listOf("HDFC Bank")
+        val normalized = text.lowercase(Locale.ROOT)
+        return knownBanks.firstOrNull {
+            normalized.contains(it.lowercase(Locale.ROOT).replace("'", ""))
+        } ?: "Unknown"
+    }
 
     fun normalizeText(text: String): String {
-        val lines = text.lines()
-            .map { it.trim() }
-            .filter {
-                it.isNotBlank() &&
-                !it.matches(Regex("""(?i)(Page No|Statement of account|MR\.|HDFC BANK LIMITED|Joint Holders|Account No|A/C Open Date|Branch Code|MICR|GSTN|Email|Phone|Address|Currency|.*GSTIN.*|.*Senapati Bapat Marg.*|Contents of this statement.*)"""))
-            }
-
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
         val result = mutableListOf<String>()
         var current = ""
 
-        fun isNewTransaction(line: String): Boolean {
-            return Regex("""^\d{2}/\d{2}/\d{2}\s""").matches(line)
-        }
+        fun isNewTxn(line: String): Boolean = Regex("""^\d{2}/\d{2}/\d{2}\s""").matches(line)
 
         for (line in lines) {
-            if (isNewTransaction(line)) {
+            if (isNewTxn(line)) {
                 if (current.isNotBlank()) result.add(current.trim())
                 current = line
             } else {
@@ -192,18 +235,8 @@ class MainActivity : AppCompatActivity() {
         return result.joinToString("\n")
     }
 
-    fun detectBankName(text: String): String {
-        val knownBanks = BankRegexPatterns.patterns.keys
-        val normalized = text.lowercase(Locale.ROOT)
-        return knownBanks.firstOrNull {
-            normalized.contains(it.lowercase(Locale.ROOT).replace("'", ""))
-        } ?: "Unknown"
-    }
-
     fun extractTransactions(text: String, bank: String): List<Transaction> {
         val cleaned = normalizeText(text)
-        if (bank != "HDFC Bank") return emptyList()
-
         val regex = Regex(
             """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?<ref>\d{10,}|[A-Z0-9]+)\s+(?<valuedt>\d{2}/\d{2}/\d{2})\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
         )
@@ -213,17 +246,17 @@ class MainActivity : AppCompatActivity() {
 
         for (match in regex.findAll(cleaned)) {
             try {
-                val date = match.groups["date"]?.value ?: ""
+                val date = match.groups["date"]?.value ?: continue
                 val desc = match.groups["desc"]?.value?.replace(",", " ") ?: ""
                 val ref = match.groups["ref"]?.value ?: ""
-                val amountStr = match.groups["amount"]?.value ?: ""
-                val balanceStr = match.groups["balance"]?.value ?: ""
+                val amountStr = match.groups["amount"]?.value ?: continue
+                val balanceStr = match.groups["balance"]?.value ?: continue
 
                 val amount = amountStr.replace(",", "").toDoubleOrNull() ?: continue
                 val balance = balanceStr.replace(",", "").toDoubleOrNull() ?: continue
 
                 val (debit, credit) = when {
-                    prevBalance == null -> Pair("", "") // first entry unknown
+                    prevBalance == null -> Pair("", "")
                     balance > prevBalance -> Pair("", amountStr)
                     balance < prevBalance -> Pair(amountStr, "")
                     else -> Pair("", "")
@@ -231,17 +264,8 @@ class MainActivity : AppCompatActivity() {
 
                 prevBalance = balance
 
-                transactions.add(
-                    Transaction(
-                        date = date,
-                        txnId = ref,
-                        remarks = desc,
-                        debit = debit,
-                        credit = credit,
-                        balance = balanceStr
-                    )
-                )
-            } catch (_: Exception) { }
+                transactions.add(Transaction(date, ref, desc, debit, credit, balanceStr))
+            } catch (_: Exception) {}
         }
 
         return transactions
@@ -264,22 +288,5 @@ class MainActivity : AppCompatActivity() {
             builder.append("${txn.date},${txn.txnId},\"${txn.remarks}\",${cleanDebit},${cleanCredit},${cleanBalance}\n")
         }
         return builder.toString()
-    }
-
-    data class Transaction(
-        val date: String,
-        val txnId: String,
-        val remarks: String,
-        val debit: String,
-        val credit: String,
-        val balance: String
-    )
-
-    object BankRegexPatterns {
-        val patterns = mapOf(
-            "HDFC Bank" to Regex(
-                """(?<date>\d{2}/\d{2}/\d{2})\s+(?<desc>.+?)\s+(?<ref>\d{10,}|[A-Z0-9]+)\s+(?<valuedt>\d{2}/\d{2}/\d{2})\s+(?<amount>[\d,]+\.\d{2})\s+(?<balance>[\d,]+\.\d{2})"""
-            )
-        )
     }
 }
