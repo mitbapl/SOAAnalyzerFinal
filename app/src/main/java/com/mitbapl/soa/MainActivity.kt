@@ -127,12 +127,23 @@ class MainActivity : AppCompatActivity() {
                     val bank = detectBankName(rawText)
                     val transactions = extractTransactions(rawText, bank)
                     val summary = summarizeByFinancialYear(transactions)
+                    val recurring = detectRecurringDebits(transactions)
+                    val finalSummary = buildString {
+                        append(summary)
+                        append("\n\n--- Recurring Debits (3+ times) ---\n")
+                        if (recurring.isEmpty()) {
+                            append("None detected.\n")
+                        } else {
+                            recurring.forEach { append("• $it\n") }
+                        }
+                    }
+
                     val csv = convertTextToCsv(rawText)
                     latestExtractedText = csv
 
                     runOnUiThread {
                         outputText.text = "Transactions Parsed: ${transactions.size}"
-                        summaryText.text = summary
+                        summaryText.text = finalSummary
                         downloadButton.isEnabled = true
                         safeToast("Bank Detected: $bank")
                     }
@@ -269,6 +280,42 @@ class MainActivity : AppCompatActivity() {
         }
 
         return transactions
+    }
+
+    fun detectRecurringDebits(transactions: List<Transaction>): List<String> {
+        val recurring = mutableMapOf<String, MutableList<Transaction>>()
+
+        transactions.filter { it.debit.isNotBlank() }.forEach { txn ->
+            val key = txn.remarks
+                .lowercase()
+                .replace(Regex("[^a-z0-9 ]"), "")
+                .replace("\\s+".toRegex(), " ")
+                .trim()
+            recurring.getOrPut(key) { mutableListOf() }.add(txn)
+        }
+
+        return recurring.filter { it.value.size >= 3 }.map { (key, txns) ->
+            val total = txns.sumOf { it.debit.replace(",", "").toDoubleOrNull() ?: 0.0 }
+            val label = classifyRecurring(key)
+            "[$label] ${key.replaceFirstChar { it.uppercaseChar() }} — ${txns.size} times — ₹%.2f".format(total)
+        }.sortedByDescending {
+            Regex("""₹([0-9,.]+)""").find(it)?.groupValues?.get(1)?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+        }
+    }
+
+    fun classifyRecurring(description: String): String {
+        val desc = description.lowercase()
+
+        return when {
+            desc.contains("emi") || desc.contains("loan") || desc.contains("instalment") -> "EMI"
+            desc.contains("rent") || desc.contains("lease") -> "Rent"
+            desc.contains("netflix") || desc.contains("prime") || desc.contains("hotstar") ||
+            desc.contains("subscription") || desc.contains("spotify") -> "Subscription"
+            desc.contains("credit card") || desc.contains("cc payment") -> "Credit Card"
+            desc.contains("electricity") || desc.contains("water") || desc.contains("bill") ||
+            desc.contains("gas") || desc.contains("broadband") || desc.contains("mobile") -> "Utility"
+            else -> "Other"
+        }
     }
 
     fun convertTextToCsv(text: String): String {
