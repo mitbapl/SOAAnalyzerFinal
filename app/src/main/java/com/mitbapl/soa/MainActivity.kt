@@ -300,16 +300,16 @@ class MainActivity : AppCompatActivity() {
 
         return recurring.filter { it.value.size >= 3 }.map { (key, txns) ->
             val total = txns.sumOf { it.debit.replace(",", "").toDoubleOrNull() ?: 0.0 }
-            val label = classifyRecurring(key)
-            "[$label] ${key.replaceFirstChar { it.uppercaseChar() }} — ${txns.size} times — ₹%.2f".format(total)
+            val labels = classifyRecurringMulti(key)
+            "[$labels] ${key.replaceFirstChar { it.uppercaseChar() }} — ${txns.size} times — ₹%.2f".format(total)
         }.sortedByDescending {
             Regex("""₹([0-9,.]+)""").find(it)?.groupValues?.get(1)?.replace(",", "")?.toDoubleOrNull() ?: 0.0
         }
     }
 
-    fun classifyRecurring(description: String): String {
+    fun classifyRecurringMulti(description: String): String {
         val recurringCategories = mapOf(
-            "EMI" to listOf("emi", "loan", "instalment", "cashe", "creditline", "aeries", "bajajfin", "nbfc"),
+            "EMI" to listOf("emi", "loan", "instalment", "cashe", "creditline", "aeries", "bajajfin", "nbfc", "ach", "nach", "mandate"),
             "Rent" to listOf("rent", "lease", "licence fee"),
             "Subscription" to listOf("netflix", "prime", "hotstar", "spotify", "playstore", "mandate", "subscription", "recharge", "amazonbill"),
             "Credit Card" to listOf("credit card", "cc payment", "card payment", "hdfc card", "icici card"),
@@ -322,11 +322,10 @@ class MainActivity : AppCompatActivity() {
         )
 
         val desc = description.lowercase(Locale.ROOT)
-        for ((category, keywords) in recurringCategories) {
-            if (keywords.any { desc.contains(it) }) return category
-        }
-
-        return "Other"
+        return recurringCategories.filter { (_, keywords) ->
+            keywords.any { desc.contains(it) }
+        }.keys.joinToString("/") // e.g., "EMI/Insurance"
+            .ifBlank { "Other" }
     }
 
     fun convertTextToCsv(text: String): String {
