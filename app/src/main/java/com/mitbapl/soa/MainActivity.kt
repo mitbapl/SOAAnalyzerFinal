@@ -282,15 +282,19 @@ class MainActivity : AppCompatActivity() {
         return transactions
     }
 
+    fun cleanRemarks(remarks: String): String {
+        return remarks
+            .lowercase(Locale.ROOT)
+            .replace(Regex("[^a-z0-9 ]"), " ")
+            .replace("\\s+".toRegex(), " ")
+            .trim()
+    }
+
     fun detectRecurringDebits(transactions: List<Transaction>): List<String> {
         val recurring = mutableMapOf<String, MutableList<Transaction>>()
 
         transactions.filter { it.debit.isNotBlank() }.forEach { txn ->
-            val key = txn.remarks
-                .lowercase()
-                .replace(Regex("[^a-z0-9 ]"), "")
-                .replace("\\s+".toRegex(), " ")
-                .trim()
+            val key = cleanRemarks(txn.remarks)
             recurring.getOrPut(key) { mutableListOf() }.add(txn)
         }
 
@@ -304,18 +308,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun classifyRecurring(description: String): String {
-        val desc = description.lowercase()
+        val recurringCategories = mapOf(
+            "EMI" to listOf("emi", "loan", "instalment", "cashe", "creditline", "aeries", "bajajfin", "nbfc"),
+            "Rent" to listOf("rent", "lease", "licence fee"),
+            "Subscription" to listOf("netflix", "prime", "hotstar", "spotify", "playstore", "mandate", "subscription", "recharge", "amazonbill"),
+            "Credit Card" to listOf("credit card", "cc payment", "card payment", "hdfc card", "icici card"),
+            "Utility" to listOf("electricity", "water", "gas", "broadband", "mobile", "bill", "mahadiscom"),
+            "Insurance" to listOf("hdfc ergo", "tata aia", "lic", "sbi life", "insurance", "premium"),
+            "Investment" to listOf("sip", "mutual fund", "nifty", "demat", "zerodha", "upstox"),
+            "Medical" to listOf("hospital", "ivf", "clinic", "apollo", "test", "indiraivf"),
+            "Food" to listOf("zomato", "swiggy", "gokhana", "eat", "box8", "faasos", "meals", "tobox"),
+            "Self Transfer" to listOf("myself", "self", "own account")
+        )
 
-        return when {
-            desc.contains("emi") || desc.contains("loan") || desc.contains("instalment") -> "EMI"
-            desc.contains("rent") || desc.contains("lease") -> "Rent"
-            desc.contains("netflix") || desc.contains("prime") || desc.contains("hotstar") ||
-            desc.contains("subscription") || desc.contains("spotify") -> "Subscription"
-            desc.contains("credit card") || desc.contains("cc payment") -> "Credit Card"
-            desc.contains("electricity") || desc.contains("water") || desc.contains("bill") ||
-            desc.contains("gas") || desc.contains("broadband") || desc.contains("mobile") -> "Utility"
-            else -> "Other"
+        val desc = description.lowercase(Locale.ROOT)
+        for ((category, keywords) in recurringCategories) {
+            if (keywords.any { desc.contains(it) }) return category
         }
+
+        return "Other"
     }
 
     fun convertTextToCsv(text: String): String {
