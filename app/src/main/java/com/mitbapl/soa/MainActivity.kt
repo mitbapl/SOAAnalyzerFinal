@@ -9,7 +9,8 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
 import org.json.JSONObject
-import java.io.*
+import java.io.File
+import java.io.IOException
 import java.util.*
 import java.util.concurrent.TimeUnit
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -204,12 +205,14 @@ class MainActivity : AppCompatActivity() {
                 val amount = amountStr.replace(",", "").toDoubleOrNull() ?: return
                 val balance = balanceStr.replace(",", "").toDoubleOrNull() ?: return
 
+                val previous = prevBalance
                 val (debit, credit) = when {
-                    prevBalance == null -> "" to ""
-                    balance > prevBalance -> "" to amountStr
-                    balance < prevBalance -> amountStr to ""
+                    previous == null -> "" to ""
+                    balance > previous -> "" to amountStr
+                    balance < previous -> amountStr to ""
                     else -> "" to ""
                 }
+
                 prevBalance = balance
                 transactions.add(Transaction(date, desc.trim(), ref, debit, credit, balanceStr))
             }
@@ -237,52 +240,3 @@ class MainActivity : AppCompatActivity() {
             val m = parts.getOrNull(1)?.toIntOrNull() ?: return "Unknown"
             val y = parts.getOrNull(2)?.toIntOrNull() ?: return "Unknown"
             return if (m >= 4) "20$y–20${y + 1}" else "20${y - 1}–20$y"
-        }
-
-        transactions.forEach { txn ->
-            val fy = getFY(txn.date)
-            fyMap.getOrPut(fy) { mutableListOf() }.add(txn)
-        }
-
-        return buildString {
-            append("FY        | Debits     | Credits    | Debit Count | Credit Count\n")
-            append("-------------------------------------------------------------\n")
-            for ((fy, txns) in fyMap) {
-                val debits = txns.sumOf { it.debit.replace(",", "").toDoubleOrNull() ?: 0.0 }
-                val credits = txns.sumOf { it.credit.replace(",", "").toDoubleOrNull() ?: 0.0 }
-                val debitCount = txns.count { it.debit.isNotBlank() }
-                val creditCount = txns.count { it.credit.isNotBlank() }
-                append(String.format("%-10s | %11.2f | %11.2f | %12d | %13d\n", fy, debits, credits, debitCount, creditCount))
-            }
-        }
-    }
-
-    fun detectRecurringDebits(transactions: List<Transaction>): List<String> {
-        val recurring = mutableMapOf<String, MutableList<Transaction>>()
-
-        fun cleanRemarks(remarks: String): String =
-            remarks.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9 ]"), " ").replace("\\s+".toRegex(), " ").trim()
-
-        transactions.filter { it.debit.isNotBlank() }.forEach { txn ->
-            val key = cleanRemarks(txn.remarks)
-            recurring.getOrPut(key) { mutableListOf() }.add(txn)
-        }
-
-        return recurring.filter { it.value.size >= 3 }.map { (key, txns) ->
-            val total = txns.sumOf { it.debit.replace(",", "").toDoubleOrNull() ?: 0.0 }
-            "$key — ${txns.size} times — ₹%.2f".format(total)
-        }
-    }
-
-    fun convertTextToCsv(text: String): String {
-        val transactions = extractTransactions(text, detectBankName(text))
-        if (transactions.isEmpty()) return "No transactions parsed.\n\n${text.take(300)}"
-
-        return buildString {
-            append("Date,TxnId,Particulars,Debit,Credit,Balance\n")
-            transactions.forEach { txn ->
-                append("${txn.date},${txn.txnId},\"${txn.remarks}\",${txn.debit},${txn.credit},${txn.balance}\n")
-            }
-        }
-    }
-}
