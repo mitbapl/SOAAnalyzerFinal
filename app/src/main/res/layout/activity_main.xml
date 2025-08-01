@@ -1,29 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <Button
-        android:id="@+id/selectPdfButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Select PDF" />
-
-    <TextView
-        android:id="@+id/summaryTextView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="12dp"
-        android:text="Summary will appear here"
-        android:scrollbars="vertical" />
-
-    <Button
-        android:id="@+id/saveCsvButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Save as CSV"
-        android:enabled="false" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" android:id="@+id/mainLayout" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp" tools:context=".MainActivity">
+<Button android:id="@+id/btnUpload" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Upload PDF"/>
+<Button android:id="@+id/btnAnalyze" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Analyze"/>
+<TextView android:id="@+id/txtOutput" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Output will appear here" android:layout_marginTop="16dp" android:textSize="16sp"/>
+<ProgressBar android:id="@+id/progressBar" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" style="?android:attr/progressBarStyleLarge" android:layout_gravity="center"/>
+<Button android:id="@+id/btnDownload" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Download Text" android:visibility="gone"/>
 </LinearLayout>
