@@ -28,20 +28,37 @@
         android:layout_marginTop="16dp"
         android:textSize="16sp" />
 
-    <ProgressBar
-    android:id="@+id/progressBar"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:visibility="gone"
-    style="?android:attr/progressBarStyleLarge"
-    android:layout_gravity="center"
-/>
+    <!-- Newly Added -->
+    <TextView
+        android:id="@+id/txtSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Summary will appear here"
+        android:layout_marginTop="16dp"
+        android:textSize="16sp" />
 
-<Button
-    android:id="@+id/btnDownload"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:text="Download Text"
-    android:visibility="gone" />
+    <!-- Newly Added -->
+    <TextView
+        android:id="@+id/txtFooter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Footer info"
+        android:layout_marginTop="8dp"
+        android:textSize="14sp" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_gravity="center" />
+
+    <Button
+        android:id="@+id/btnDownload"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Download Text"
+        android:visibility="gone" />
 
 </LinearLayout>
