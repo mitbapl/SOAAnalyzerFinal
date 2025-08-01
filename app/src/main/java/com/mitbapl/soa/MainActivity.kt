@@ -133,7 +133,7 @@ class MainActivity : AppCompatActivity() {
                         append(summary)
                         append("\n\n--- Recurring Debits (3+ times) ---\n")
                         if (recurring.isEmpty()) append("None detected.\n")
-                        else recurring.forEach { append("• $it\n") }
+                        else recurring.forEach { item -> append("• $item\n") }
                     }
 
                     val csv = convertTextToCsv(rawText)
@@ -232,7 +232,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun summarizeByFinancialYear(transactions: List<Transaction>): String {
-        val fyMap = mutableMapOf<String, MutableList<Transaction>>()
+        val fyMap: MutableMap<String, MutableList<Transaction>> = mutableMapOf()
 
         fun getFY(date: String): String {
             val parts = date.split("/")
@@ -247,7 +247,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val sb = StringBuilder()
-        for ((fy, txns) in fyMap.entries.sortedBy { it.key }) {
+        for ((fy, txns) in fyMap.toSortedMap()) {
             val totalDebit = txns.sumOf { it.debit.replace(",", "").toDoubleOrNull() ?: 0.0 }
             val totalCredit = txns.sumOf { it.credit.replace(",", "").toDoubleOrNull() ?: 0.0 }
             sb.append("$fy:\nDebit: ₹%,.2f\nCredit: ₹%,.2f\n\n".format(totalDebit, totalCredit))
@@ -257,25 +257,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun detectRecurringDebits(transactions: List<Transaction>): List<String> {
-        val map = mutableMapOf<String, Int>()
+        val map: MutableMap<String, Int> = mutableMapOf()
         for (txn in transactions) {
-            val key = txn.remarks.lowercase().trim()
+            val key = txn.remarks.trim().lowercase()
             map[key] = map.getOrDefault(key, 0) + 1
         }
-        return map.filter { it.value >= 3 }.keys.toList()
+        return map.filter { entry -> entry.value >= 3 }.map { entry -> entry.key }
     }
 
     fun convertTextToCsv(text: String): String {
-        val csv = StringBuilder()
-        csv.append("Date,Remarks,TxnID,Debit,Credit,Balance\n")
-
         val transactions = extractTransactions(text, detectBankName(text))
+        val csvLines = mutableListOf("Date,Remarks,TxnID,Debit,Credit,Balance")
         for (txn in transactions) {
-            val row = listOf(txn.date, txn.remarks, txn.txnId, txn.debit, txn.credit, txn.balance)
-                .joinToString(",") { it.replace(",", " ") }
-            csv.append("$row\n")
+            val row = listOf(
+                txn.date, txn.remarks, txn.txnId,
+                txn.debit, txn.credit, txn.balance
+            ).joinToString(",") { it.replace(",", " ") }
+            csvLines.add(row)
         }
-
-        return csv.toString()
+        return csvLines.joinToString("\n")
     }
 }
