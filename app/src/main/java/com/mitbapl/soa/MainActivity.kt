@@ -1,3 +1,4 @@
+
 package com.mitbapl.soa
 
 import android.app.Activity
@@ -282,50 +283,40 @@ class MainActivity : AppCompatActivity() {
         return transactions
     }
 
-    fun cleanRemarks(remarks: String): String {
-        return remarks
-            .lowercase(Locale.ROOT)
-            .replace(Regex("[^a-z0-9 ]"), " ")
-            .replace("\\s+".toRegex(), " ")
-            .trim()
-    }
-
     fun detectRecurringDebits(transactions: List<Transaction>): List<String> {
         val recurring = mutableMapOf<String, MutableList<Transaction>>()
 
         transactions.filter { it.debit.isNotBlank() }.forEach { txn ->
-            val key = cleanRemarks(txn.remarks)
+            val key = txn.remarks
+                .lowercase()
+                .replace(Regex("[^a-z0-9 ]"), "")
+                .replace("\\s+".toRegex(), " ")
+                .trim()
             recurring.getOrPut(key) { mutableListOf() }.add(txn)
         }
 
         return recurring.filter { it.value.size >= 3 }.map { (key, txns) ->
             val total = txns.sumOf { it.debit.replace(",", "").toDoubleOrNull() ?: 0.0 }
-            val labels = classifyRecurringMulti(key)
-            "[$labels] ${key.replaceFirstChar { it.uppercaseChar() }} — ${txns.size} times — ₹%.2f".format(total)
+            val label = classifyRecurring(key)
+            "[$label] ${key.replaceFirstChar { it.uppercaseChar() }} — ${txns.size} times — ₹%.2f".format(total)
         }.sortedByDescending {
             Regex("""₹([0-9,.]+)""").find(it)?.groupValues?.get(1)?.replace(",", "")?.toDoubleOrNull() ?: 0.0
         }
     }
 
-    fun classifyRecurringMulti(description: String): String {
-        val recurringCategories = mapOf(
-            "EMI" to listOf("emi", "loan", "instalment", "cashe", "creditline", "aeries", "bajajfin", "nbfc", "ach", "nach", "mandate"),
-            "Rent" to listOf("rent", "lease", "licence fee"),
-            "Subscription" to listOf("netflix", "prime", "hotstar", "spotify", "playstore", "mandate", "subscription", "recharge", "amazonbill"),
-            "Credit Card" to listOf("credit card", "cc payment", "card payment", "hdfc card", "icici card"),
-            "Utility" to listOf("electricity", "water", "gas", "broadband", "mobile", "bill", "mahadiscom"),
-            "Insurance" to listOf("hdfc ergo", "tata aia", "lic", "sbi life", "insurance", "premium"),
-            "Investment" to listOf("sip", "mutual fund", "nifty", "demat", "zerodha", "upstox"),
-            "Medical" to listOf("hospital", "ivf", "clinic", "apollo", "test", "indiraivf"),
-            "Food" to listOf("zomato", "swiggy", "gokhana", "eat", "box8", "faasos", "meals", "tobox"),
-            "Self Transfer" to listOf("myself", "self", "own account")
-        )
+    fun classifyRecurring(description: String): String {
+        val desc = description.lowercase()
 
-        val desc = description.lowercase(Locale.ROOT)
-        return recurringCategories.filter { (_, keywords) ->
-            keywords.any { desc.contains(it) }
-        }.keys.joinToString("/") // e.g., "EMI/Insurance"
-            .ifBlank { "Other" }
+        return when {
+            desc.contains("emi") || desc.contains("loan") || desc.contains("instalment") -> "EMI"
+            desc.contains("rent") || desc.contains("lease") -> "Rent"
+            desc.contains("netflix") || desc.contains("prime") || desc.contains("hotstar") ||
+            desc.contains("subscription") || desc.contains("spotify") -> "Subscription"
+            desc.contains("credit card") || desc.contains("cc payment") -> "Credit Card"
+            desc.contains("electricity") || desc.contains("water") || desc.contains("bill") ||
+            desc.contains("gas") || desc.contains("broadband") || desc.contains("mobile") -> "Utility"
+            else -> "Other"
+        }
     }
 
     fun convertTextToCsv(text: String): String {
