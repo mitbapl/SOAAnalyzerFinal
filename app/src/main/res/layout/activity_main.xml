@@ -32,7 +32,7 @@
                 android:text="Analyze"
                 android:layout_marginTop="8dp"/>
 
-            <!-- Download Button (moved here) -->
+            <!-- Download Button -->
             <Button
                 android:id="@+id/btnDownload"
                 android:layout_width="match_parent"
@@ -49,6 +49,19 @@
                 android:layout_height="wrap_content"
                 android:visibility="gone"
                 android:layout_marginTop="8dp"/>
+
+            <!-- Summary Text -->
+            <TextView
+                android:id="@+id/txtSummary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Summary will appear here"
+                android:textStyle="bold"
+                android:padding="8dp"
+                android:textSize="16sp"
+                android:layout_marginTop="8dp"
+                android:background="#EEEEEE"
+                android:textColor="#333333" />
 
             <!-- Output Text -->
             <TextView
